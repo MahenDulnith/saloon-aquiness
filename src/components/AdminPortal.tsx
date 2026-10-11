@@ -3,7 +3,7 @@ import {
   Calendar, CheckCircle, Clock, XCircle, AlertCircle, 
   Search, Filter, Plus, Trash2, Edit3, Phone, Mail, 
   RotateCcw, DollarSign, Users, Scissors, Flame, ExternalLink,
-  Check, ShieldAlert, Sparkles
+  Check, ShieldAlert, Sparkles, Lock
 } from 'lucide-react';
 import { Appointment, SalonService, StaffMember, AppointmentStatus, ServiceCategory } from '../types';
 import { StorageService } from '../services/storage';
@@ -15,6 +15,7 @@ interface AdminPortalProps {
   onAppointmentsUpdated: () => void;
   onServicesUpdated: () => void;
   onStaffUpdated: () => void;
+  onLockPortal?: () => void;
 }
 
 export const AdminPortal: React.FC<AdminPortalProps> = ({
@@ -23,7 +24,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   staff,
   onAppointmentsUpdated,
   onServicesUpdated,
-  onStaffUpdated
+  onStaffUpdated,
+  onLockPortal
 }) => {
   const [activeTab, setActiveTab] = useState<'appointments' | 'services' | 'staff' | 'firebase'>('appointments');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -176,6 +178,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {onLockPortal && (
+            <button
+              onClick={onLockPortal}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 text-xs font-semibold transition-colors"
+              title="Lock Staff Portal"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Lock Portal</span>
+            </button>
+          )}
           <button
             onClick={handleResetData}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs transition-colors"

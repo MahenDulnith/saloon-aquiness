@@ -3,6 +3,7 @@ import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { BookingWizard } from './components/BookingWizard';
 import { AdminPortal } from './components/AdminPortal';
+import { StaffLogin } from './components/StaffLogin';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { Footer } from './components/Footer';
 import { StorageService } from './services/storage';
@@ -11,6 +12,16 @@ import { Appointment, SalonService, StaffMember } from './types';
 
 export const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'booking' | 'admin'>('booking');
+  const [isStaffAuthenticated, setIsStaffAuthenticated] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('aquiness_staff_auth');
+      if (!saved) return false;
+      const parsed = JSON.parse(saved);
+      return Boolean(parsed.authenticated && (Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000));
+    } catch {
+      return false;
+    }
+  });
   const [services, setServices] = useState<SalonService[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -88,6 +99,11 @@ export const App: React.FC = () => {
                 onGoToStaffPortal={() => setCurrentView('admin')}
               />
             </div>
+          ) : !isStaffAuthenticated ? (
+            <StaffLogin
+              onSuccess={() => setIsStaffAuthenticated(true)}
+              onCancel={() => setCurrentView('booking')}
+            />
           ) : (
             <AdminPortal
               appointments={appointments}
@@ -96,6 +112,11 @@ export const App: React.FC = () => {
               onAppointmentsUpdated={loadData}
               onServicesUpdated={loadData}
               onStaffUpdated={loadData}
+              onLockPortal={() => {
+                localStorage.removeItem('aquiness_staff_auth');
+                setIsStaffAuthenticated(false);
+                setCurrentView('booking');
+              }}
             />
           )}
         </main>
