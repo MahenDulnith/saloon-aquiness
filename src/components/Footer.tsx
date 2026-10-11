@@ -12,14 +12,19 @@ export const Footer: React.FC<FooterProps> = ({ onOpenStaffPortal }) => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           
           <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-zinc-950 font-bold">
-                <Scissors className="w-4 h-4 -rotate-45" />
+            <div className="flex items-center gap-3">
+              <img 
+                src="/logo.png" 
+                alt="Aquiness Barber Logo" 
+                className="w-11 h-11 rounded-full object-cover ring-2 ring-amber-500/40" 
+              />
+              <div>
+                <span className="font-serif text-lg font-bold text-white tracking-wide block">AQUINESS BARBER</span>
+                <span className="text-[10px] uppercase font-semibold text-amber-400 tracking-wider">Professional Saloon · Est. 2024</span>
               </div>
-              <span className="font-serif text-lg font-bold text-white tracking-wide">SALOON AQUINESS</span>
             </div>
             <p className="text-zinc-500 leading-relaxed">
-              Premium grooming studio and relaxation retreat in Colombo. Master precision cuts, royal shaves, and luxury hair spa.
+              Premier men's barber & professional salon in Pallewela. Master precision cuts, royal hot-towel shaves, and grooming therapies.
             </p>
           </div>
 
@@ -28,15 +33,15 @@ export const Footer: React.FC<FooterProps> = ({ onOpenStaffPortal }) => {
             <div className="space-y-2">
               <p className="flex items-start gap-2">
                 <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <span>45 Galle Road, Colombo 03, Sri Lanka</span>
+                <span>Kuliyapitiya Madampe Road, Pallewela</span>
               </p>
               <p className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>+94 77 123 4567</span>
+                <a href="tel:+94701333485" className="hover:text-amber-400 transition-colors">070 133 3485</a>
               </p>
               <p className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>appointments@saloonaquiness.lk</span>
+                <span>info@aquinessbarber.lk</span>
               </p>
             </div>
           </div>

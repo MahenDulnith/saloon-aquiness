@@ -18,21 +18,23 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onViewChange, onBoo
             onClick={() => onViewChange('booking')}
             className="flex items-center gap-3.5 cursor-pointer group"
           >
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-500/20 group-hover:scale-105 transition-transform duration-200">
-              <Scissors className="w-6 h-6 text-zinc-950 -rotate-45" />
-            </div>
+            <img 
+              src="/logo.png" 
+              alt="Aquiness Barber Logo" 
+              className="w-12 h-12 rounded-full object-cover shadow-lg shadow-amber-500/20 ring-2 ring-amber-500/40 group-hover:scale-105 transition-transform duration-200" 
+            />
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-serif text-xl sm:text-2xl font-bold tracking-tight text-white group-hover:text-amber-400 transition-colors">
-                  SALOON AQUINESS
+                  AQUINESS BARBER
                 </span>
                 <span className="text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 hidden sm:inline-block">
-                  Luxury Grooming
+                  Professional Saloon
                 </span>
               </div>
               <p className="text-xs text-zinc-400 font-light flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                Open Today: 9:00 AM – 8:00 PM
+                Pallewela · Open Today: 9:00 AM – 8:00 PM
               </p>
             </div>
           </div>
@@ -70,11 +72,11 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onViewChange, onBoo
             {currentView === 'booking' ? (
               <>
                 <a 
-                  href="tel:+94771234567" 
+                  href="tel:+94701333485" 
                   className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium text-zinc-300 hover:text-white bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-colors"
                 >
                   <Phone className="w-3.5 h-3.5 text-amber-400" />
-                  <span>+94 77 123 4567</span>
+                  <span>070 133 3485</span>
                 </a>
 
                 {/* Primary Gold Booking CTA Button */}

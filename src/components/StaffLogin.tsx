@@ -95,12 +95,14 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({ onSuccess, onCancel }) =
         <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-48 h-48 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
 
         <div className="text-center space-y-2 relative">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 mx-auto flex items-center justify-center text-zinc-950 shadow-lg shadow-amber-500/20">
-            <Lock className="w-7 h-7" />
-          </div>
-          <h2 className="font-serif text-2xl font-bold text-white tracking-wide">Staff & Owner Portal</h2>
+          <img 
+            src="/logo.png" 
+            alt="Aquiness Barber" 
+            className="w-16 h-16 rounded-full mx-auto object-cover ring-2 ring-amber-500/50 shadow-lg shadow-amber-500/20"
+          />
+          <h2 className="font-serif text-2xl font-bold text-white tracking-wide">Aquiness Barber Portal</h2>
           <p className="text-xs text-zinc-400">
-            Authorized access only for Didula and salon team members.
+            Authorized management access for Didula and salon team members.
           </p>
         </div>
 

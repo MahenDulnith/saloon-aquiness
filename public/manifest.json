@@ -1,11 +1,16 @@
 {
-  "short_name": "Saloon Aquiness",
-  "name": "Saloon Aquiness & Spa Booking",
+  "short_name": "Aquiness Barber",
+  "name": "Aquiness Barber - Professional Saloon",
   "icons": [
     {
-      "src": "/favicon.svg",
-      "type": "image/svg+xml",
-      "sizes": "any"
+      "src": "/icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
     }
   ],
   "start_url": "/",
@@ -13,5 +18,5 @@
   "theme_color": "#18181b",
   "display": "standalone",
   "orientation": "portrait",
-  "description": "Book appointments, manage salon services and schedules at Saloon Aquiness"
+  "description": "Book appointments, manage salon services and schedules at Aquiness Barber, Pallewela"
 }

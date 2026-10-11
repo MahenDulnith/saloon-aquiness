@@ -17,7 +17,7 @@ export const Hero: React.FC<HeroProps> = ({ onStartBooking }) => {
           <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900/90 border border-amber-500/30 text-amber-300 text-xs font-medium">
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Master Grooming & Relaxing Hair Therapy</span>
+              <span>Est. 2024 · Pallewela, Kuliyapitiya</span>
             </div>
 
             <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-[1.15]">
@@ -26,7 +26,7 @@ export const Hero: React.FC<HeroProps> = ({ onStartBooking }) => {
             </h1>
 
             <p className="text-zinc-400 text-sm sm:text-base max-w-xl mx-auto lg:mx-0 font-light leading-relaxed">
-              Experience handcrafted hair styling, meticulous beard architecture, and rejuvenation therapies delivered by certified salon masters in Colombo.
+              Experience handcrafted hair styling, precision beard architecture, and rejuvenation therapies delivered by certified salon masters at Aquiness Barber, Pallewela.
             </p>
 
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-2">
@@ -72,10 +72,15 @@ export const Hero: React.FC<HeroProps> = ({ onStartBooking }) => {
             <div className="relative mx-auto max-w-md rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-900/40 shadow-2xl">
               <img
                 src="https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=800&q=80"
-                alt="Didula Saloon Studio"
+                alt="Aquiness Barber Studio"
                 className="w-full h-80 object-cover object-center filter brightness-90 contrast-105 hover:scale-105 transition-transform duration-700"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/30 to-transparent" />
+              
+              {/* Official Brand Badge */}
+              <div className="absolute top-4 right-4 z-10 w-16 h-16 rounded-full bg-zinc-950/90 backdrop-blur-md p-1 border border-amber-500/50 shadow-xl shadow-black/80">
+                <img src="/logo.png" alt="Aquiness Barber Seal" className="w-full h-full rounded-full object-cover" />
+              </div>
               
               <div className="absolute bottom-4 left-4 right-4 p-4 rounded-xl bg-zinc-900/90 backdrop-blur-md border border-zinc-800/80 flex items-center justify-between">
                 <div>

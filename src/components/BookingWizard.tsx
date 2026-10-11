@@ -684,11 +684,14 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({
           {/* Luxury Salon Boarding Pass Ticket */}
           <div className="rounded-2xl bg-zinc-900 border border-amber-500/30 overflow-hidden shadow-2xl relative text-left">
             <div className="p-5 bg-gradient-to-r from-zinc-900 to-zinc-950 border-b border-zinc-800 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] uppercase font-bold tracking-widest text-amber-400">
-                  Saloon Aquiness & Spa
-                </span>
-                <p className="font-serif font-bold text-white text-base">VIP Reservation Pass</p>
+              <div className="flex items-center gap-3">
+                <img src="/logo.png" alt="Aquiness Barber Logo" className="w-10 h-10 rounded-full object-cover ring-1 ring-amber-500/50" />
+                <div>
+                  <span className="text-[10px] uppercase font-bold tracking-widest text-amber-400">
+                    Aquiness Barber · Pallewela
+                  </span>
+                  <p className="font-serif font-bold text-white text-base">VIP Reservation Pass</p>
+                </div>
               </div>
               <div className="text-right">
                 <span className="text-[10px] text-zinc-400">Pass Code</span>
@@ -738,7 +741,7 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({
 
             <div className="p-3 bg-zinc-950/80 border-t border-zinc-800/80 text-center">
               <p className="text-[11px] text-zinc-400">
-                Show this voucher or phone number when you arrive at our salon.
+                Show this voucher at Kuliyapitiya Madampe Road, Pallewela or call <span className="text-amber-400 font-semibold">070 133 3485</span>.
               </p>
             </div>
           </div>
@@ -750,12 +753,13 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({
             >
               Book Another Appointment
             </button>
-            <button
-              onClick={onGoToStaffPortal}
-              className="flex-1 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold transition-colors shadow-md shadow-amber-500/20"
+            <a
+              href="tel:+94701333485"
+              className="flex-1 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold transition-colors shadow-md shadow-amber-500/20 flex items-center justify-center gap-1.5"
             >
-              View in Staff Dashboard →
-            </button>
+              <Phone className="w-3.5 h-3.5" />
+              <span>Call Salon (070 133 3485)</span>
+            </a>
           </div>
 
         </div>

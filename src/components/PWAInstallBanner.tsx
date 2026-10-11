@@ -46,12 +46,14 @@ export const PWAInstallBanner: React.FC = () => {
   return (
     <aside aria-label="Install App" className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-50 p-4 rounded-2xl bg-zinc-900/95 backdrop-blur-md border border-amber-500/40 shadow-2xl shadow-black/80 flex items-center justify-between gap-3 animate-bounce-short">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-zinc-950 font-bold shrink-0">
-          <Smartphone className="w-5 h-5" />
-        </div>
+        <img 
+          src="/logo.png" 
+          alt="Aquiness Barber" 
+          className="w-11 h-11 rounded-full object-cover ring-2 ring-amber-500/40 shrink-0" 
+        />
         <div>
-          <p className="text-xs font-bold text-white">Install Saloon Aquiness App</p>
-          <p className="text-[11px] text-zinc-400">Add to your phone for instant offline bookings.</p>
+          <p className="text-xs font-bold text-white">Install Aquiness Barber App</p>
+          <p className="text-[11px] text-zinc-400">Add to your home screen for quick 1-tap bookings.</p>
         </div>
       </div>
 
