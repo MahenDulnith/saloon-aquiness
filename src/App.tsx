@@ -113,16 +113,16 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col justify-between selection:bg-amber-500 selection:text-zinc-950">
-      <div>
-        <Navbar 
-          currentView={currentView}
-          onViewChange={handleViewChange}
-          onBookNowClick={handleStartBooking}
-        />
+      {currentView === 'booking' ? (
+        <>
+          <div>
+            <Navbar 
+              currentView={currentView}
+              onViewChange={handleViewChange}
+              onBookNowClick={handleStartBooking}
+            />
 
-        <main>
-          {currentView === 'booking' ? (
-            <div>
+            <main>
               <Hero onStartBooking={handleStartBooking} />
               <BookingWizard
                 services={services}
@@ -131,34 +131,35 @@ export const App: React.FC = () => {
                 onAppointmentCreated={loadData}
                 onGoToStaffPortal={() => handleViewChange('admin')}
               />
-            </div>
-          ) : !currentStaffUser ? (
-            <StaffLogin
-              staffList={staff}
-              onSuccess={(user) => setCurrentStaffUser(user)}
-              onCancel={() => handleViewChange('booking')}
-            />
-          ) : (
-            <AdminPortal
-              currentUser={currentStaffUser}
-              appointments={appointments}
-              services={services}
-              staff={staff}
-              onAppointmentsUpdated={loadData}
-              onServicesUpdated={loadData}
-              onStaffUpdated={loadData}
-              onLockPortal={() => {
-                localStorage.removeItem('aquiness_staff_auth');
-                setCurrentStaffUser(null);
-                handleViewChange('booking');
-              }}
-            />
-          )}
-        </main>
-      </div>
+            </main>
+          </div>
 
-      <PWAInstallBanner />
-      <Footer onOpenStaffPortal={() => handleViewChange('admin')} />
+          <PWAInstallBanner />
+          <Footer onOpenStaffPortal={() => handleViewChange('admin')} />
+        </>
+      ) : !currentStaffUser ? (
+        <StaffLogin
+          staffList={staff}
+          onSuccess={(user) => setCurrentStaffUser(user)}
+          onCancel={() => handleViewChange('booking')}
+        />
+      ) : (
+        <AdminPortal
+          currentUser={currentStaffUser}
+          appointments={appointments}
+          services={services}
+          staff={staff}
+          onAppointmentsUpdated={loadData}
+          onServicesUpdated={loadData}
+          onStaffUpdated={loadData}
+          onExitToClientWebsite={() => handleViewChange('booking')}
+          onLockPortal={() => {
+            localStorage.removeItem('aquiness_staff_auth');
+            setCurrentStaffUser(null);
+            handleViewChange('booking');
+          }}
+        />
+      )}
     </div>
   );
 };
