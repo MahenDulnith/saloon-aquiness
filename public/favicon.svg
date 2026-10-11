@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="50%" stop-color="#d4af37"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" rx="24" fill="#18181b"/>
+  <circle cx="50" cy="50" r="42" fill="none" stroke="url(#goldGrad)" stroke-width="2.5" stroke-dasharray="4 2"/>
+  <!-- Stylized Scissors & D Monogram -->
+  <path d="M35 30 L65 70 M65 30 L35 70" stroke="url(#goldGrad)" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="33" cy="72" r="8" fill="none" stroke="url(#goldGrad)" stroke-width="4"/>
+  <circle cx="67" cy="72" r="8" fill="none" stroke="url(#goldGrad)" stroke-width="4"/>
+  <circle cx="50" cy="46" r="3" fill="#fbbf24"/>
+</svg>

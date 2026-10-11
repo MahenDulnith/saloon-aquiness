@@ -1,0 +1,17 @@
+{
+  "short_name": "Saloon Aquiness",
+  "name": "Saloon Aquiness & Spa Booking",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#09090b",
+  "theme_color": "#18181b",
+  "display": "standalone",
+  "orientation": "portrait",
+  "description": "Book appointments, manage salon services and schedules at Saloon Aquiness"
+}
