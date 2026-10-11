@@ -6,6 +6,7 @@ import { AdminPortal } from './components/AdminPortal';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { Footer } from './components/Footer';
 import { StorageService } from './services/storage';
+import { FirebaseService } from './services/firebaseService';
 import { Appointment, SalonService, StaffMember } from './types';
 
 export const App: React.FC = () => {
@@ -15,16 +16,33 @@ export const App: React.FC = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
 
   // Load data
-  const loadData = useCallback(() => {
-    setServices(StorageService.getServices());
-    setStaff(StorageService.getStaff());
-    setAppointments(StorageService.getAppointments());
+  const loadData = useCallback(async () => {
+    try {
+      const [fetchedServices, fetchedStaff, fetchedApts] = await Promise.all([
+        FirebaseService.getServices(),
+        FirebaseService.getStaff(),
+        FirebaseService.getAppointments()
+      ]);
+      setServices(fetchedServices);
+      setStaff(fetchedStaff);
+      setAppointments(fetchedApts);
+    } catch {
+      setServices(StorageService.getServices());
+      setStaff(StorageService.getStaff());
+      setAppointments(StorageService.getAppointments());
+    }
   }, []);
 
   useEffect(() => {
-    loadData();
+    // Initial load and seed
+    FirebaseService.initializeDatabase().then(() => loadData());
 
-    // Listen to storage update events
+    // Real-time listener for live updates across all devices
+    const unsubscribe = FirebaseService.subscribeToAppointments((liveApts) => {
+      setAppointments(liveApts);
+    });
+
+    // Listen to local storage events
     const handleStorageUpdate = () => {
       loadData();
     };
@@ -33,6 +51,7 @@ export const App: React.FC = () => {
     window.addEventListener('storage', handleStorageUpdate);
 
     return () => {
+      unsubscribe();
       window.removeEventListener('didula_storage_update', handleStorageUpdate);
       window.removeEventListener('storage', handleStorageUpdate);
     };
