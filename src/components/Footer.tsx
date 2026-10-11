@@ -1,7 +1,11 @@
 import React from 'react';
-import { Scissors, MapPin, Phone, Mail, Clock, Instagram, Facebook } from 'lucide-react';
+import { Scissors, MapPin, Phone, Mail, Clock, Instagram, Facebook, Lock } from 'lucide-react';
 
-export const Footer: React.FC = () => {
+interface FooterProps {
+  onOpenStaffPortal?: () => void;
+}
+
+export const Footer: React.FC<FooterProps> = ({ onOpenStaffPortal }) => {
   return (
     <footer className="bg-zinc-950 border-t border-zinc-800/80 text-zinc-400 text-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -68,7 +72,21 @@ export const Footer: React.FC = () => {
         </div>
 
         <div className="mt-12 pt-6 border-t border-zinc-900 flex flex-col sm:flex-row items-center justify-between gap-4 text-zinc-500 text-[11px]">
-          <p>© {new Date().getFullYear()} Saloon Aquiness & Spa. All rights reserved.</p>
+          <div className="flex items-center gap-3">
+            <span>© {new Date().getFullYear()} Saloon Aquiness & Spa. All rights reserved.</span>
+            {onOpenStaffPortal && (
+              <>
+                <span className="text-zinc-800">•</span>
+                <button
+                  onClick={onOpenStaffPortal}
+                  className="text-zinc-600 hover:text-amber-400 transition-colors flex items-center gap-1"
+                >
+                  <Lock className="w-3 h-3" />
+                  <span>Staff Portal</span>
+                </button>
+              </>
+            )}
+          </div>
           <p className="flex items-center gap-1">
             Built with modern Progressive Web App (PWA) architecture for iOS, Android & Desktop.
           </p>

@@ -1,13 +1,13 @@
 import React from 'react';
-import { Scissors, ShieldCheck, UserCheck, Calendar, Phone, Sparkles } from 'lucide-react';
+import { Scissors, Calendar, Phone, Sparkles, ArrowLeft } from 'lucide-react';
 
 interface NavbarProps {
   currentView: 'booking' | 'admin';
   onViewChange: (view: 'booking' | 'admin') => void;
-  pendingCount: number;
+  onBookNowClick: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ currentView, onViewChange, pendingCount }) => {
+export const Navbar: React.FC<NavbarProps> = ({ currentView, onViewChange, onBookNowClick }) => {
   return (
     <header className="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800/80">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -37,52 +37,65 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onViewChange, pendi
             </div>
           </div>
 
-          {/* Quick Contact & View Selector */}
-          <div className="flex items-center gap-2 sm:gap-4">
-            <a 
-              href="tel:+94771234567" 
-              className="hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium text-zinc-300 hover:text-white bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-colors"
-            >
-              <Phone className="w-3.5 h-3.5 text-amber-400" />
-              <span>+94 77 123 4567</span>
-            </a>
+          {/* Customer Navigation Links (Desktop) */}
+          {currentView === 'booking' && (
+            <nav className="hidden md:flex items-center gap-6 text-xs uppercase tracking-wider font-medium text-zinc-300">
+              <button 
+                onClick={onBookNowClick}
+                className="hover:text-amber-400 transition-colors"
+              >
+                Services
+              </button>
+              <button 
+                onClick={onBookNowClick}
+                className="hover:text-amber-400 transition-colors"
+              >
+                Specialists
+              </button>
+              <a 
+                href="#footer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.querySelector('footer')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="hover:text-amber-400 transition-colors"
+              >
+                Hours & Location
+              </a>
+            </nav>
+          )}
 
-            {/* Portal Switcher Tabs */}
-            <div className="flex items-center p-1 bg-zinc-900/90 border border-zinc-800 rounded-xl">
+          {/* Right Action Area */}
+          <div className="flex items-center gap-2 sm:gap-4">
+            {currentView === 'booking' ? (
+              <>
+                <a 
+                  href="tel:+94771234567" 
+                  className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium text-zinc-300 hover:text-white bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-colors"
+                >
+                  <Phone className="w-3.5 h-3.5 text-amber-400" />
+                  <span>+94 77 123 4567</span>
+                </a>
+
+                {/* Primary Gold Booking CTA Button */}
+                <button
+                  onClick={onBookNowClick}
+                  className="flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-zinc-950 font-bold text-xs sm:text-sm shadow-lg shadow-amber-500/20 hover:shadow-amber-500/35 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>Book Appointment</span>
+                </button>
+              </>
+            ) : (
+              /* If currently in Staff Portal, show Return to Website button */
               <button
                 onClick={() => onViewChange('booking')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
-                  currentView === 'booking'
-                    ? 'bg-amber-500 text-zinc-950 font-semibold shadow-md shadow-amber-500/20'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white text-xs font-semibold transition-colors"
               >
-                <Calendar className="w-4 h-4" />
-                <span>Book Now</span>
+                <ArrowLeft className="w-3.5 h-3.5 text-amber-400" />
+                <span>Return to Client Website</span>
               </button>
-
-              <button
-                onClick={() => onViewChange('admin')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 relative ${
-                  currentView === 'admin'
-                    ? 'bg-amber-500 text-zinc-950 font-semibold shadow-md shadow-amber-500/20'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                <UserCheck className="w-4 h-4" />
-                <span>Staff Portal</span>
-                {pendingCount > 0 && (
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                    currentView === 'admin' 
-                      ? 'bg-zinc-950 text-amber-400' 
-                      : 'bg-amber-500 text-zinc-950'
-                  }`}>
-                    {pendingCount}
-                  </span>
-                )}
-              </button>
-            </div>
-
+            )}
           </div>
 
         </div>

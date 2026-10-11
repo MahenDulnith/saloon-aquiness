@@ -11,7 +11,30 @@ import { FirebaseService } from './services/firebaseService';
 import { Appointment, SalonService, StaffMember } from './types';
 
 export const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'booking' | 'admin'>('booking');
+  const [currentView, setCurrentView] = useState<'booking' | 'admin'>(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash.toLowerCase();
+      const search = window.location.search.toLowerCase();
+      const path = window.location.pathname.toLowerCase();
+      if (hash.includes('staff') || hash.includes('admin') || search.includes('staff') || search.includes('admin') || path.includes('/staff')) {
+        return 'admin';
+      }
+    }
+    return 'booking';
+  });
+
+  const handleViewChange = (view: 'booking' | 'admin') => {
+    setCurrentView(view);
+    if (typeof window !== 'undefined') {
+      if (view === 'admin') {
+        window.location.hash = 'staff';
+      } else {
+        if (window.location.hash === '#staff' || window.location.hash === '#admin') {
+          history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+      }
+    }
+  };
   const [isStaffAuthenticated, setIsStaffAuthenticated] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('aquiness_staff_auth');
@@ -71,7 +94,7 @@ export const App: React.FC = () => {
   const pendingAppointmentsCount = appointments.filter(a => a.status === 'pending').length;
 
   const handleStartBooking = () => {
-    setCurrentView('booking');
+    handleViewChange('booking');
     const bookingEl = document.getElementById('booking-section');
     if (bookingEl) {
       bookingEl.scrollIntoView({ behavior: 'smooth' });
@@ -83,8 +106,8 @@ export const App: React.FC = () => {
       <div>
         <Navbar 
           currentView={currentView}
-          onViewChange={setCurrentView}
-          pendingCount={pendingAppointmentsCount}
+          onViewChange={handleViewChange}
+          onBookNowClick={handleStartBooking}
         />
 
         <main>
@@ -96,13 +119,13 @@ export const App: React.FC = () => {
                 staff={staff}
                 appointments={appointments}
                 onAppointmentCreated={loadData}
-                onGoToStaffPortal={() => setCurrentView('admin')}
+                onGoToStaffPortal={() => handleViewChange('admin')}
               />
             </div>
           ) : !isStaffAuthenticated ? (
             <StaffLogin
               onSuccess={() => setIsStaffAuthenticated(true)}
-              onCancel={() => setCurrentView('booking')}
+              onCancel={() => handleViewChange('booking')}
             />
           ) : (
             <AdminPortal
@@ -115,7 +138,7 @@ export const App: React.FC = () => {
               onLockPortal={() => {
                 localStorage.removeItem('aquiness_staff_auth');
                 setIsStaffAuthenticated(false);
-                setCurrentView('booking');
+                handleViewChange('booking');
               }}
             />
           )}
@@ -123,7 +146,7 @@ export const App: React.FC = () => {
       </div>
 
       <PWAInstallBanner />
-      <Footer />
+      <Footer onOpenStaffPortal={() => handleViewChange('admin')} />
     </div>
   );
 };
