@@ -8,7 +8,7 @@ import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { Footer } from './components/Footer';
 import { StorageService } from './services/storage';
 import { FirebaseService } from './services/firebaseService';
-import { Appointment, SalonService, StaffMember } from './types';
+import { Appointment, SalonService, StaffMember, CurrentStaffUser } from './types';
 
 export const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'booking' | 'admin'>(() => {
@@ -35,14 +35,24 @@ export const App: React.FC = () => {
       }
     }
   };
-  const [isStaffAuthenticated, setIsStaffAuthenticated] = useState<boolean>(() => {
+
+  const [currentStaffUser, setCurrentStaffUser] = useState<CurrentStaffUser | null>(() => {
     try {
       const saved = localStorage.getItem('aquiness_staff_auth');
-      if (!saved) return false;
+      if (!saved) return null;
       const parsed = JSON.parse(saved);
-      return Boolean(parsed.authenticated && (Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000));
+      if (parsed.authenticated && (Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000)) {
+        return parsed.user || {
+          id: 'staff-1',
+          name: 'Didula Perera',
+          role: 'admin',
+          title: 'Founder & Master Stylist',
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'
+        };
+      }
+      return null;
     } catch {
-      return false;
+      return null;
     }
   });
   const [services, setServices] = useState<SalonService[]>([]);
@@ -122,13 +132,15 @@ export const App: React.FC = () => {
                 onGoToStaffPortal={() => handleViewChange('admin')}
               />
             </div>
-          ) : !isStaffAuthenticated ? (
+          ) : !currentStaffUser ? (
             <StaffLogin
-              onSuccess={() => setIsStaffAuthenticated(true)}
+              staffList={staff}
+              onSuccess={(user) => setCurrentStaffUser(user)}
               onCancel={() => handleViewChange('booking')}
             />
           ) : (
             <AdminPortal
+              currentUser={currentStaffUser}
               appointments={appointments}
               services={services}
               staff={staff}
@@ -137,7 +149,7 @@ export const App: React.FC = () => {
               onStaffUpdated={loadData}
               onLockPortal={() => {
                 localStorage.removeItem('aquiness_staff_auth');
-                setIsStaffAuthenticated(false);
+                setCurrentStaffUser(null);
                 handleViewChange('booking');
               }}
             />

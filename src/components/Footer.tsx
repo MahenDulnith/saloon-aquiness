@@ -65,12 +65,12 @@ export const Footer: React.FC<FooterProps> = ({ onOpenStaffPortal }) => {
           </div>
 
           <div>
-            <h4 className="font-bold text-white uppercase tracking-wider text-xs mb-3">PWA & Booking Info</h4>
+            <h4 className="font-bold text-white uppercase tracking-wider text-xs mb-3">Appointments & Inquiries</h4>
             <p className="text-zinc-500 mb-3 leading-relaxed">
-              Fast, zero-download PWA web app powered by Firebase Cloud architecture.
+              Book appointments in seconds, choose your preferred stylist, and get instant updates.
             </p>
             <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-400">
-              <span className="text-emerald-400 font-semibold">● System Online:</span> Instant confirmation & automatic schedule synchronization.
+              <span className="text-emerald-400 font-semibold">● Salon Open Today:</span> Walk-ins & scheduled appointments welcome.
             </div>
           </div>
 

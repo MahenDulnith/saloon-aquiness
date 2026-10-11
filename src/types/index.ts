@@ -60,3 +60,14 @@ export interface BookingState {
   customerEmail: string;
   notes: string;
 }
+
+export type StaffUserRole = 'admin' | 'staff';
+
+export interface CurrentStaffUser {
+  id: string;
+  name: string;
+  role: StaffUserRole;
+  title: string;
+  avatar?: string;
+  email?: string;
+}

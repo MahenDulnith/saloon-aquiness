@@ -1,14 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { 
   Calendar, CheckCircle, Clock, XCircle, AlertCircle, 
-  Search, Filter, Plus, Trash2, Edit3, Phone, Mail, 
-  RotateCcw, DollarSign, Users, Scissors, Flame, ExternalLink,
-  Check, ShieldAlert, Sparkles, Lock
+  Search, Plus, Trash2, Phone, 
+  DollarSign, Users, Scissors, Check, Sparkles, Lock,
+  Crown, LogOut, UserCheck, Shield
 } from 'lucide-react';
-import { Appointment, SalonService, StaffMember, AppointmentStatus, ServiceCategory } from '../types';
+import { Appointment, SalonService, StaffMember, AppointmentStatus, ServiceCategory, CurrentStaffUser } from '../types';
 import { StorageService } from '../services/storage';
 
 interface AdminPortalProps {
+  currentUser: CurrentStaffUser;
   appointments: Appointment[];
   services: SalonService[];
   staff: StaffMember[];
@@ -19,6 +20,7 @@ interface AdminPortalProps {
 }
 
 export const AdminPortal: React.FC<AdminPortalProps> = ({
+  currentUser,
   appointments,
   services,
   staff,
@@ -27,12 +29,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onStaffUpdated,
   onLockPortal
 }) => {
-  const [activeTab, setActiveTab] = useState<'appointments' | 'services' | 'staff' | 'firebase'>('appointments');
+  const [activeTab, setActiveTab] = useState<'appointments' | 'services' | 'staff'>('appointments');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [dateFilter, setDateFilter] = useState<string>('all'); // 'all' or 'today'
+  const [stylistScope, setStylistScope] = useState<'all' | 'mine'>('all');
 
-  // Service form state (for adding new service)
+  // Service form state (Admin only)
   const [showAddServiceModal, setShowAddServiceModal] = useState<boolean>(false);
   const [newServiceName, setNewServiceName] = useState<string>('');
   const [newServiceCategory, setNewServiceCategory] = useState<ServiceCategory>('Hair');
@@ -41,6 +44,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [newServiceDescription, setNewServiceDescription] = useState<string>('');
 
   const todayIso = new Date().toISOString().split('T')[0];
+  const isAdmin = currentUser.role === 'admin';
 
   // Stats
   const stats = useMemo(() => {
@@ -61,14 +65,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     return appointments.filter(apt => {
       const matchStatus = statusFilter === 'all' || apt.status === statusFilter;
       const matchDate = dateFilter === 'all' || (dateFilter === 'today' && apt.date === todayIso);
+      
+      const matchStylistScope = stylistScope === 'all' || (
+        apt.staffId === currentUser.id || 
+        apt.staffName.toLowerCase().includes(currentUser.name.toLowerCase()) ||
+        currentUser.name.toLowerCase().includes(apt.staffName.toLowerCase())
+      );
+
       const matchSearch = 
         apt.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         apt.customerPhone.includes(searchQuery) ||
         apt.serviceName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         apt.staffName.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchStatus && matchDate && matchSearch;
+
+      return matchStatus && matchDate && matchStylistScope && matchSearch;
     });
-  }, [appointments, statusFilter, dateFilter, searchQuery, todayIso]);
+  }, [appointments, statusFilter, dateFilter, stylistScope, currentUser, searchQuery, todayIso]);
 
   // Status badge styling
   const getStatusBadge = (status: AppointmentStatus) => {
@@ -112,7 +124,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   const handleDeleteAppointment = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this appointment record?')) {
+    if (window.confirm('Are you sure you want to remove this appointment record?')) {
       StorageService.deleteAppointment(id);
       onAppointmentsUpdated();
     }
@@ -125,6 +137,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   const handleAddService = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) {
+      alert('Permission Denied: Only Admin (Didula Perera) can create salon services.');
+      return;
+    }
+
     if (!newServiceName.trim()) return;
 
     const newSrv: SalonService = {
@@ -145,56 +162,82 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   const handleDeleteService = (id: string) => {
-    if (window.confirm('Delete this service from the catalog?')) {
+    if (!isAdmin) {
+      alert('Permission Denied: Only Admin (Didula Perera) can delete services.');
+      return;
+    }
+
+    if (window.confirm('Delete this service from the salon catalog?')) {
       StorageService.deleteService(id);
       onServicesUpdated();
-    }
-  };
-
-  const handleResetData = () => {
-    if (window.confirm('Reset all appointments and catalog back to default sample records?')) {
-      StorageService.resetDemoData();
-      onAppointmentsUpdated();
-      onServicesUpdated();
-      onStaffUpdated();
     }
   };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       
-      {/* Top Header & Reset */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="font-serif text-2xl sm:text-3xl font-bold text-white">Staff Management Command Center</h1>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-              Live Offline & Sync
-            </span>
+      {/* Top Header & User Identity Profile */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-zinc-800/80">
+        <div className="flex items-center gap-3.5">
+          <img 
+            src="/logo.png" 
+            alt="Saloon Aquiness" 
+            className="w-12 h-12 rounded-full object-cover ring-2 ring-amber-500/40 shadow-md shadow-amber-500/10" 
+          />
+          <div>
+            <h1 className="font-serif text-2xl sm:text-3xl font-bold text-white tracking-wide">
+              Saloon Aquiness Portal
+            </h1>
+            <p className="text-zinc-400 text-xs sm:text-sm mt-0.5">
+              Daily appointments schedule, customer queue, and salon management.
+            </p>
           </div>
-          <p className="text-zinc-400 text-xs sm:text-sm mt-1">
-            Real-time appointment schedule, customer check-ins, service catalogue, and staff availability.
-          </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* User Identity Chip & Lock Action */}
+        <div className="flex items-center gap-3 self-start md:self-auto bg-zinc-900/90 border border-zinc-800 p-2 sm:px-3 sm:py-2 rounded-2xl shadow-lg">
+          {currentUser.avatar ? (
+            <img 
+              src={currentUser.avatar} 
+              alt={currentUser.name} 
+              className="w-10 h-10 rounded-full object-cover ring-2 ring-amber-500/40 shrink-0"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-sm ring-1 ring-amber-500/40 shrink-0">
+              {currentUser.name.charAt(0)}
+            </div>
+          )}
+
+          <div className="text-left min-w-[130px]">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs sm:text-sm font-bold text-white leading-tight">
+                {currentUser.name}
+              </span>
+              {isAdmin ? (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center gap-1">
+                  <Crown className="w-2.5 h-2.5" /> Admin
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/40 flex items-center gap-1">
+                  <Scissors className="w-2.5 h-2.5" /> Stylist
+                </span>
+              )}
+            </div>
+            <span className="text-[11px] text-zinc-400 truncate block">
+              {currentUser.title}
+            </span>
+          </div>
+
           {onLockPortal && (
             <button
               onClick={onLockPortal}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 text-xs font-semibold transition-colors"
-              title="Lock Staff Portal"
+              className="ml-1 p-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-400 hover:text-red-400 hover:border-red-500/30 transition-colors flex items-center gap-1 text-xs"
+              title="Lock portal / switch staff account"
             >
-              <Lock className="w-3.5 h-3.5" />
-              <span>Lock Portal</span>
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Exit</span>
             </button>
           )}
-          <button
-            onClick={handleResetData}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs transition-colors"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset Demo Data</span>
-          </button>
         </div>
       </div>
 
@@ -224,7 +267,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
         <div className="p-4 sm:p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-zinc-400 font-medium">Active Stylists</span>
+            <span className="text-xs text-zinc-400 font-medium">Stylists On Duty</span>
             <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
               <Users className="w-4 h-4" />
             </div>
@@ -232,12 +275,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           <p className="font-serif text-2xl sm:text-3xl font-bold text-white mt-2">
             {staff.filter(s => s.available).length} <span className="text-sm font-normal text-zinc-500">/ {staff.length}</span>
           </p>
-          <span className="text-[11px] text-emerald-400 mt-1 block">On-duty in salon</span>
+          <span className="text-[11px] text-emerald-400 mt-1 block">Available in salon</span>
         </div>
 
         <div className="p-4 sm:p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-zinc-400 font-medium">Estimated Revenue</span>
+            <span className="text-xs text-zinc-400 font-medium">Salon Revenue</span>
             <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
               <DollarSign className="w-4 h-4" />
             </div>
@@ -272,7 +315,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           }`}
         >
           <Scissors className="w-4 h-4" />
-          <span>Services Catalog ({services.length})</span>
+          <span>Services & Prices ({services.length})</span>
+          {!isAdmin && <Lock className="w-3 h-3 text-zinc-400" />}
         </button>
 
         <button
@@ -286,18 +330,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           <Users className="w-4 h-4" />
           <span>Staff Roster ({staff.length})</span>
         </button>
-
-        <button
-          onClick={() => setActiveTab('firebase')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
-            activeTab === 'firebase'
-              ? 'bg-amber-500 text-zinc-950 shadow-md shadow-amber-500/20'
-              : 'text-zinc-400 hover:text-white bg-zinc-900/40'
-          }`}
-        >
-          <Flame className="w-4 h-4 text-orange-400" />
-          <span>Firebase Spark Setup</span>
-        </button>
       </div>
 
       {/* TAB 1: APPOINTMENTS */}
@@ -307,6 +339,35 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           {/* Filters Bar */}
           <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
             <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-none">
+              
+              {/* My Queue vs All Staff Scope */}
+              <div className="flex items-center rounded-xl bg-zinc-900 p-0.5 border border-zinc-800 shrink-0">
+                <button
+                  onClick={() => setStylistScope('all')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    stylistScope === 'all'
+                      ? 'bg-amber-500 text-zinc-950'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  All Staff
+                </button>
+                <button
+                  onClick={() => setStylistScope('mine')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${
+                    stylistScope === 'mine'
+                      ? 'bg-amber-500 text-zinc-950'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                  title={`Show only appointments assigned to ${currentUser.name}`}
+                >
+                  <UserCheck className="w-3 h-3" />
+                  <span>My Queue ({currentUser.name.split(' ')[0]})</span>
+                </button>
+              </div>
+
+              <div className="h-5 w-px bg-zinc-800 mx-1 shrink-0" />
+
               {['all', 'pending', 'confirmed', 'in_progress', 'completed', 'cancelled'].map(st => (
                 <button
                   key={st}
@@ -353,7 +414,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <Clock className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
               <p className="text-zinc-400 text-sm font-medium">No appointments found matching your filters.</p>
               <button 
-                onClick={() => { setStatusFilter('all'); setDateFilter('all'); setSearchQuery(''); }}
+                onClick={() => { setStatusFilter('all'); setDateFilter('all'); setStylistScope('all'); setSearchQuery(''); }}
                 className="text-xs text-amber-400 hover:underline mt-2 inline-block"
               >
                 Clear all filters
@@ -404,7 +465,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <div className="inline-flex flex-col lg:items-center">
                       <span className="text-xs font-semibold text-zinc-200">{apt.date}</span>
                       <span className="text-sm font-bold text-amber-400">{apt.timeSlot}</span>
-                      <span className="text-[11px] text-zinc-400">Stylist: {apt.staffName}</span>
+                      <span className="text-[11px] text-zinc-400">
+                        Stylist: <strong className="text-zinc-200">{apt.staffName}</strong>
+                      </span>
                     </div>
                   </div>
 
@@ -424,7 +487,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         onClick={() => handleUpdateStatus(apt.id, 'in_progress')}
                         className="px-3 py-1.5 rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/30 text-xs font-semibold flex items-center gap-1"
                       >
-                        <Sparkles className="w-3.5 h-3.5" /> Start Service
+                        <Sparkles className="w-3.5 h-3.5" /> Seat Client (In Chair)
                       </button>
                     )}
 
@@ -433,7 +496,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         onClick={() => handleUpdateStatus(apt.id, 'completed')}
                         className="px-3 py-1.5 rounded-lg bg-emerald-500 text-zinc-950 hover:bg-emerald-400 text-xs font-bold flex items-center gap-1"
                       >
-                        <Check className="w-3.5 h-3.5" /> Complete
+                        <Check className="w-3.5 h-3.5" /> Complete Service
                       </button>
                     )}
 
@@ -447,6 +510,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       </button>
                     )}
 
+                    {/* Delete appointment allowed for Admin or general cleanup */}
                     <button
                       onClick={() => handleDeleteAppointment(apt.id)}
                       className="p-1.5 rounded-lg text-zinc-600 hover:text-red-400 transition-colors"
@@ -463,18 +527,44 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         </div>
       )}
 
-      {/* TAB 2: SERVICES CATALOG */}
+      {/* TAB 2: SERVICES CATALOG (ADMIN CONTROLS) */}
       {activeTab === 'services' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-serif text-lg font-bold text-white">Salon Services & Pricing Catalog</h2>
-            <button
-              onClick={() => setShowAddServiceModal(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs shadow-md shadow-amber-500/20 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add New Service</span>
-            </button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-900/40 p-4 rounded-2xl border border-zinc-800">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="font-serif text-lg font-bold text-white">Salon Services & Pricing Catalog</h2>
+                {isAdmin ? (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                    Admin Editing Active
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
+                    View-Only (Staff)
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                {isAdmin 
+                  ? 'Manage salon service packages, durations, and official prices.' 
+                  : 'Salon service catalogue and pricing guide for client reference.'}
+              </p>
+            </div>
+
+            {isAdmin ? (
+              <button
+                onClick={() => setShowAddServiceModal(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs shadow-md shadow-amber-500/20 transition-colors self-start sm:self-auto"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add New Service</span>
+              </button>
+            ) : (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs self-start sm:self-auto">
+                <Lock className="w-3.5 h-3.5 text-amber-400" />
+                <span>Only Didula (Admin) can add services</span>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -485,18 +575,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               >
                 <div>
                   <div className="flex items-start justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
                       {srv.category}
                     </span>
-                    <button
-                      onClick={() => handleDeleteService(srv.id)}
-                      className="text-zinc-600 hover:text-red-400"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {/* Only Admin can delete services */}
+                    {isAdmin && (
+                      <button
+                        onClick={() => handleDeleteService(srv.id)}
+                        className="text-zinc-600 hover:text-red-400 transition-colors p-1"
+                        title="Delete Service (Admin)"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
-                  <h3 className="font-semibold text-white text-base mt-1">{srv.name}</h3>
-                  <p className="text-xs text-zinc-400 mt-2 leading-relaxed">{srv.description}</p>
+                  <h3 className="font-semibold text-white text-base mt-2">{srv.name}</h3>
+                  <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">{srv.description}</p>
                 </div>
 
                 <div className="flex items-center justify-between mt-4 pt-3 border-t border-zinc-800/80">
@@ -516,108 +610,88 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       {/* TAB 3: STAFF ROSTER */}
       {activeTab === 'staff' && (
         <div className="space-y-4">
-          <h2 className="font-serif text-lg font-bold text-white">Stylists, Barbers & Therapists Roster</h2>
+          <div className="flex items-center justify-between bg-zinc-900/40 p-4 rounded-2xl border border-zinc-800">
+            <div>
+              <h2 className="font-serif text-lg font-bold text-white">Stylists, Barbers & Therapists Roster</h2>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                Monitor team availability and daily on-duty status.
+              </p>
+            </div>
+          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {staff.map(member => (
-              <div 
-                key={member.id}
-                className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-center flex flex-col items-center"
-              >
-                <img 
-                  src={member.avatar} 
-                  alt={member.name}
-                  className="w-20 h-20 rounded-full object-cover border-2 border-amber-500/40 mb-3"
-                />
-                <h3 className="font-bold text-white text-base">{member.name}</h3>
-                <p className="text-xs text-amber-400/90 font-medium">{member.role}</p>
-                <p className="text-xs text-zinc-400 mt-1">{member.specialty}</p>
+            {staff.map(member => {
+              const isMemberDidula = member.id === 'staff-1' || member.name.toLowerCase().includes('didula');
+              const isCurrentUser = member.id === currentUser.id;
 
-                <div className="my-4 pt-3 border-t border-zinc-800/80 w-full flex items-center justify-around text-xs">
-                  <div>
-                    <span className="text-zinc-500 block">Rating</span>
-                    <span className="font-bold text-white">⭐ {member.rating}</span>
-                  </div>
-                  <div>
-                    <span className="text-zinc-500 block">Status</span>
-                    <span className={`font-semibold ${member.available ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {member.available ? 'On Duty' : 'Off Duty'}
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => handleToggleStaff(member.id)}
-                  className={`w-full py-2 rounded-xl text-xs font-semibold transition-colors ${
-                    member.available 
-                      ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700' 
-                      : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/40'
+              return (
+                <div 
+                  key={member.id}
+                  className={`p-5 rounded-2xl bg-zinc-900/60 border text-center flex flex-col items-center relative ${
+                    isCurrentUser ? 'border-amber-500/50 ring-1 ring-amber-500/20' : 'border-zinc-800'
                   }`}
                 >
-                  {member.available ? 'Mark as Off-Duty' : 'Set Available Today'}
-                </button>
-              </div>
-            ))}
+                  {isMemberDidula && (
+                    <div className="absolute top-3 right-3 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center gap-1">
+                      <Crown className="w-2.5 h-2.5" /> Admin
+                    </div>
+                  )}
+
+                  <img 
+                    src={member.avatar} 
+                    alt={member.name}
+                    className="w-20 h-20 rounded-full object-cover border-2 border-amber-500/40 mb-3"
+                  />
+                  <h3 className="font-bold text-white text-base">{member.name}</h3>
+                  <p className="text-xs text-amber-400/90 font-medium">{member.role}</p>
+                  <p className="text-xs text-zinc-400 mt-1">{member.specialty}</p>
+
+                  <div className="my-4 pt-3 border-t border-zinc-800/80 w-full flex items-center justify-around text-xs">
+                    <div>
+                      <span className="text-zinc-500 block">Rating</span>
+                      <span className="font-bold text-white">⭐ {member.rating}</span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 block">Status</span>
+                      <span className={`font-semibold ${member.available ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {member.available ? 'On Duty' : 'Off Duty'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Duty status toggle: Admin can toggle all, staff can toggle their own */}
+                  {(isAdmin || isCurrentUser) ? (
+                    <button
+                      onClick={() => handleToggleStaff(member.id)}
+                      className={`w-full py-2 rounded-xl text-xs font-semibold transition-colors ${
+                        member.available 
+                          ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700' 
+                          : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/40'
+                      }`}
+                    >
+                      {member.available ? 'Mark as Off-Duty' : 'Set Available Today'}
+                    </button>
+                  ) : (
+                    <div className="w-full py-2 text-center text-xs text-zinc-500 bg-zinc-950/40 rounded-xl border border-zinc-800/60">
+                      Managed by Stylist
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* TAB 4: FIREBASE ARCHITECTURE & FREE SPARK TIER SETUP */}
-      {activeTab === 'firebase' && (
-        <div className="p-6 rounded-2xl bg-zinc-900/80 border border-zinc-800 space-y-6">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400">
-              <Flame className="w-6 h-6" />
-            </div>
-            <div>
-              <h2 className="font-serif text-xl font-bold text-white">Firebase Spark (Free Tier) Integration</h2>
-              <p className="text-xs text-zinc-400">
-                How your web app is designed to connect directly to Firebase at zero monthly cost.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-            <div className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-2">
-              <span className="font-bold text-amber-400 text-sm">1. Firebase Auth</span>
-              <p className="text-zinc-400 leading-relaxed">
-                Free for 10,000 monthly active users. Allows customers and staff to log in with SMS phone number, Google account, or email.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-2">
-              <span className="font-bold text-amber-400 text-sm">2. Cloud Firestore</span>
-              <p className="text-zinc-400 leading-relaxed">
-                Free for 50,000 document reads & 20,000 writes per day. Stores your <code>appointments</code>, <code>services</code>, and <code>staff</code> collections in real-time.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-2">
-              <span className="font-bold text-amber-400 text-sm">3. Firebase Hosting</span>
-              <p className="text-zinc-400 leading-relaxed">
-                Free SSL certificate, global CDN, and custom domain linking (e.g. <code>didulasaloon.lk</code>).
-              </p>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800/80 space-y-2">
-            <p className="text-xs font-semibold text-white">How to connect when you create your Firebase Project:</p>
-            <ol className="text-xs text-zinc-400 space-y-1 list-decimal list-inside leading-relaxed">
-              <li>Create a free project at <span className="text-amber-400">console.firebase.google.com</span> named "Didula Saloon".</li>
-              <li>Click "Add web app" to get your API keys.</li>
-              <li>Place your keys in the project root file <code>.env</code> or inside <code>src/firebase/config.ts</code>.</li>
-              <li>Your app will immediately switch from local storage to live real-time Cloud Firestore!</li>
-            </ol>
-          </div>
-        </div>
-      )}
-
-      {/* ADD SERVICE MODAL */}
-      {showAddServiceModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      {/* ADD SERVICE MODAL (ADMIN ONLY) */}
+      {showAddServiceModal && isAdmin && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-fade-in">
             <div className="flex items-center justify-between">
-              <h3 className="font-serif text-lg font-bold text-white">Add New Salon Service</h3>
+              <div className="flex items-center gap-2">
+                <Crown className="w-4 h-4 text-amber-400" />
+                <h3 className="font-serif text-lg font-bold text-white">Add New Salon Service</h3>
+              </div>
               <button onClick={() => setShowAddServiceModal(false)} className="text-zinc-400 hover:text-white">✕</button>
             </div>
 
@@ -627,10 +701,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Beard Dye & Hot Oil Therapy"
+                  placeholder="e.g. Skin Fade & Beard Contouring"
                   value={newServiceName}
                   onChange={e => setNewServiceName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
+                  className="w-full px-3 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
                 />
               </div>
 
@@ -640,7 +714,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <select
                     value={newServiceCategory}
                     onChange={e => setNewServiceCategory(e.target.value as ServiceCategory)}
-                    className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
+                    className="w-full px-3 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
                   >
                     <option value="Hair">Hair</option>
                     <option value="Beard & Shave">Beard & Shave</option>
@@ -658,7 +732,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     step="100"
                     value={newServicePrice}
                     onChange={e => setNewServicePrice(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
+                    className="w-full px-3 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
               </div>
@@ -671,7 +745,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   step="5"
                   value={newServiceDuration}
                   onChange={e => setNewServiceDuration(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
+                  className="w-full px-3 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
                 />
               </div>
 
@@ -682,7 +756,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   placeholder="Describe the treatment and technique used..."
                   value={newServiceDescription}
                   onChange={e => setNewServiceDescription(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
+                  className="w-full px-3 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
                 />
               </div>
 
