@@ -260,8 +260,8 @@ export const FirebaseService = {
     }
   },
 
-  // Security alert: sends email alert when someone accesses staff portal from client view
-  async sendStaffLoginAlert(reason: string = 'Secret 10-tap gesture on client profile'): Promise<void> {
+  // Security alert: sends email alert when someone accesses staff portal or fails login
+  async sendStaffLoginAlert(reason: string = 'Secret 10-tap gesture on client profile', isUrgent: boolean = false): Promise<void> {
     const timestamp = new Date().toLocaleString('en-US', {
       timeZone: 'Asia/Colombo',
       dateStyle: 'full',
@@ -269,39 +269,50 @@ export const FirebaseService = {
     });
     const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown Device';
     const targetEmail = 'didula@saloonaquiness.lk';
+    const isMultipleFail = isUrgent || reason.toLowerCase().includes('3+') || reason.toLowerCase().includes('failed');
+
+    const emailSubject = isMultipleFail
+      ? `🚨 URGENT: 3+ Failed Login Attempts Detected on Salon Portal`
+      : `⚠️ Security Alert: Staff Portal Activity (${reason})`;
 
     // 1. Log to Firestore security_alerts
     try {
       if (isFirebaseConfigured()) {
         await addDoc(collection(db, 'security_alerts'), {
-          event: 'staff_portal_access_from_client_view',
+          event: isMultipleFail ? 'multiple_failed_logins' : 'staff_portal_access',
           reason,
+          isUrgent: isMultipleFail,
           targetEmail,
           timestamp: new Date().toISOString(),
           formattedTime: timestamp,
           userAgent,
-          source: 'client_pwa_10_tap_gesture'
+          source: 'salon_portal_auth'
         });
 
         // 2. Queue in Firestore 'mail' collection (Firebase Trigger Email extension)
         await addDoc(collection(db, 'mail'), {
           to: [targetEmail],
           message: {
-            subject: '⚠️ Security Alert: Staff Login Attempt from Client Page',
-            text: `Alert: Someone accessed the staff login portal from the client page at ${timestamp}.\nDevice: ${userAgent}\nTrigger: ${reason}`,
+            subject: emailSubject,
+            text: `Alert: ${reason}\nTime: ${timestamp}\nDevice: ${userAgent}`,
             html: `
-              <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 500px; padding: 24px; border: 1px solid #e4e4e7; border-radius: 16px;">
-                <h2 style="color: #d97706; margin-top: 0;">⚠️ Aquiness Barber Security Alert</h2>
+              <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 520px; padding: 24px; border: 2px solid ${isMultipleFail ? '#ef4444' : '#e4e4e7'}; border-radius: 16px;">
+                <h2 style="color: ${isMultipleFail ? '#dc2626' : '#d97706'}; margin-top: 0;">
+                  ${isMultipleFail ? '🚨 URGENT: Multiple Failed Sign-in Attempts' : '⚠️ Aquiness Barber Security Alert'}
+                </h2>
                 <p style="color: #3f3f46; font-size: 14px; line-height: 1.5;">
-                  Someone accessed the <strong>Staff Sign In Portal</strong> from the customer booking page.
+                  ${isMultipleFail 
+                    ? 'Someone entered an <strong>incorrect PIN more than 3 times</strong> on the Staff Portal. The keypad has been temporarily locked to protect your account.'
+                    : 'Someone accessed or interacted with the <strong>Staff Sign In Portal</strong>.'
+                  }
                 </p>
                 <div style="background-color: #f4f4f5; padding: 14px; border-radius: 10px; font-size: 13px; color: #18181b; margin: 16px 0;">
                   <p style="margin: 4px 0;"><strong>Time:</strong> ${timestamp}</p>
-                  <p style="margin: 4px 0;"><strong>Trigger:</strong> ${reason}</p>
+                  <p style="margin: 4px 0;"><strong>Detail:</strong> ${reason}</p>
                   <p style="margin: 4px 0;"><strong>Device:</strong> ${userAgent}</p>
                 </div>
                 <p style="color: #71717a; font-size: 12px; margin-bottom: 0;">
-                  If this was you, you can safely disregard this alert.
+                  If this was an authorized staff member, they can try again using the new master password <strong>1018</strong> or their personal PIN.
                 </p>
               </div>
             `
@@ -322,8 +333,10 @@ export const FirebaseService = {
           'Accept': 'application/json'
         },
         body: JSON.stringify({
-          _subject: '⚠️ Security Alert: Staff Sign-In Accessed from Client Page',
-          alert: 'Someone accessed the staff portal from the customer booking page.',
+          _subject: emailSubject,
+          alert: isMultipleFail 
+            ? '🚨 WARNING: Someone failed staff PIN entry more than 3 times!' 
+            : 'Staff portal sign-in activity recorded.',
           timestamp: timestamp,
           device: userAgent,
           trigger: reason

@@ -357,7 +357,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [staffFormPhone, setStaffFormPhone] = useState('');
   const [staffFormEmail, setStaffFormEmail] = useState('');
   const [staffFormRole, setStaffFormRole] = useState<'Stylist' | 'Admin'>('Stylist');
-  const [staffFormPin, setStaffFormPin] = useState('1234');
+  const [staffFormPin, setStaffFormPin] = useState('1018');
   const [staffFormActive, setStaffFormActive] = useState(true);
   const [staffFormAvatar, setStaffFormAvatar] = useState<string>('');
   const [isProcessingStaffPhoto, setIsProcessingStaffPhoto] = useState<boolean>(false);
@@ -467,7 +467,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setStaffFormPhone('');
     setStaffFormEmail('');
     setStaffFormRole('Stylist');
-    setStaffFormPin('1234');
+    setStaffFormPin('1018');
     setStaffFormActive(true);
     setStaffFormAvatar('');
     setShowStaffPin(false);
@@ -484,7 +484,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setStaffFormPhone(st.phone || '');
     setStaffFormEmail(st.email || '');
     setStaffFormRole(st.role.toLowerCase().includes('admin') || st.role.toLowerCase().includes('founder') ? 'Admin' : 'Stylist');
-    setStaffFormPin(st.pin || '1234');
+    setStaffFormPin(st.pin || '1018');
     setStaffFormActive(st.available !== false);
     setStaffFormAvatar(st.avatar || '');
     setShowStaffPin(false);
@@ -518,7 +518,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       avatar: staffFormAvatar.trim(),
       email: staffFormEmail.trim() || `${firstName.toLowerCase()}@saloonaquiness.lk`,
       phone: staffFormPhone.trim() || '',
-      pin: staffFormPin.trim() || '1234',
+      pin: staffFormPin.trim() || '1018',
       available: staffFormActive,
       workingDays: editingStaff?.workingDays || [1, 2, 3, 4, 5, 6],
       servicesOffered: editingStaff?.servicesOffered || ['all']

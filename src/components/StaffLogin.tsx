@@ -50,6 +50,27 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
   const [pin, setPin] = useState<string>('');
   const [pinError, setPinError] = useState<string>('');
 
+  // Brute-force protection: Lockout and email alert on 3+ failed attempts
+  const [failedAttempts, setFailedAttempts] = useState<number>(0);
+  const [isLockedOut, setIsLockedOut] = useState<boolean>(false);
+  const [lockoutTimer, setLockoutTimer] = useState<number>(0);
+
+  // Countdown timer for lockout
+  useEffect(() => {
+    if (!isLockedOut || lockoutTimer <= 0) return;
+    const interval = setInterval(() => {
+      setLockoutTimer(prev => {
+        if (prev <= 1) {
+          setIsLockedOut(false);
+          setPinError('');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isLockedOut, lockoutTimer]);
+
   // Email state
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -88,69 +109,67 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
 
   // Verify PIN logic
   const verifyPin = (pinToTest: string) => {
+    if (isLockedOut) return;
     const trimmed = pinToTest.trim();
     const configuredPin = currentSelectedMember.pin ? currentSelectedMember.pin.trim() : '';
 
-    if (isDidulaAdmin) {
-      const isMatch = (configuredPin !== '' && trimmed === configuredPin) || trimmed === '1234' || trimmed === '7788';
-      if (isMatch) {
-        const user: CurrentStaffUser = {
-          id: currentSelectedMember.id,
-          name: currentSelectedMember.name,
-          role: 'admin',
-          title: currentSelectedMember.role || 'Owner & Master Stylist',
-          avatar: currentSelectedMember.avatar
-        };
+    // Master PIN is 1018 (replaces 1234). 7788 remains Didula's master recovery PIN.
+    const isMasterMatch = trimmed === '1018' || (isDidulaAdmin && trimmed === '7788');
+    const isCustomMatch = configuredPin !== '' && trimmed === configuredPin;
+    const isCorrect = isMasterMatch || isCustomMatch;
 
-        localStorage.setItem('aquiness_staff_auth', JSON.stringify({
-          authenticated: true,
-          type: 'pin',
-          user,
-          timestamp: Date.now()
-        }));
+    if (isCorrect) {
+      setFailedAttempts(0);
+      setIsLockedOut(false);
+      setLockoutTimer(0);
 
-        FirebaseService.sendStaffLoginAlert(`Successful Admin PIN login: ${user.name}`);
-        onSuccess(user);
-      } else {
-        FirebaseService.sendStaffLoginAlert(`Failed PIN entered for ${currentSelectedMember.name} (Admin)`);
-        setPinError('Incorrect PIN. Try again.');
-        setTimeout(() => {
-          setPin('');
-          setPinError('');
-        }, 800);
-      }
+      const user: CurrentStaffUser = {
+        id: currentSelectedMember.id,
+        name: currentSelectedMember.name,
+        role: isDidulaAdmin ? 'admin' : 'staff',
+        title: currentSelectedMember.role || (isDidulaAdmin ? 'Owner & Master Stylist' : 'Barber & Stylist'),
+        avatar: currentSelectedMember.avatar
+      };
+
+      localStorage.setItem('aquiness_staff_auth', JSON.stringify({
+        authenticated: true,
+        type: 'pin',
+        user,
+        timestamp: Date.now()
+      }));
+
+      FirebaseService.sendStaffLoginAlert(`Successful PIN login: ${user.name} (${user.role})`);
+      onSuccess(user);
     } else {
-      const isMatch = (configuredPin !== '' && trimmed === configuredPin) || trimmed === '5678' || trimmed === '1234';
-      if (isMatch) {
-        const user: CurrentStaffUser = {
-          id: currentSelectedMember.id,
-          name: currentSelectedMember.name,
-          role: 'staff',
-          title: currentSelectedMember.role || 'Barber & Stylist',
-          avatar: currentSelectedMember.avatar
-        };
+      const newFailCount = failedAttempts + 1;
+      setFailedAttempts(newFailCount);
 
-        localStorage.setItem('aquiness_staff_auth', JSON.stringify({
-          authenticated: true,
-          type: 'pin',
-          user,
-          timestamp: Date.now()
-        }));
-
-        FirebaseService.sendStaffLoginAlert(`Successful Staff PIN login: ${user.name}`);
-        onSuccess(user);
+      if (newFailCount >= 3) {
+        // Send urgent email alert to Didula immediately
+        FirebaseService.sendStaffLoginAlert(
+          `3+ Consecutive Failed PIN attempts for ${currentSelectedMember.name} (Suspicious sign-in activity)`,
+          true
+        );
+        setIsLockedOut(true);
+        setLockoutTimer(30);
+        setPinError('Too many failed attempts (3). Keypad locked for 30s. Security alert sent to Didula.');
+        setPin('');
       } else {
-        FirebaseService.sendStaffLoginAlert(`Failed PIN entered for ${currentSelectedMember.name} (Staff)`);
-        setPinError(`Incorrect PIN for ${currentSelectedMember.name.split(' ')[0]}.`);
+        FirebaseService.sendStaffLoginAlert(
+          `Failed PIN entered for ${currentSelectedMember.name} (Attempt ${newFailCount}/3)`
+        );
+        const remaining = 3 - newFailCount;
+        setPinError(`Incorrect PIN. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`);
         setTimeout(() => {
           setPin('');
-          setPinError('');
-        }, 800);
+          if (!isLockedOut) setPinError('');
+        }, 900);
       }
     }
   };
 
   const handleNumberPress = (digit: string) => {
+    if (isLockedOut) return;
     if (pin.length < 4) {
       const newPin = pin + digit;
       setPin(newPin);
@@ -164,15 +183,17 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
   };
 
   const handleBackspace = () => {
+    if (isLockedOut) return;
     setPin(prev => prev.slice(0, -1));
     setPinError('');
   };
 
   // Listen to physical keyboard events
   useEffect(() => {
-    if (authMode !== 'pin') return;
+    if (authMode !== 'pin' || isLockedOut) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isLockedOut) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
@@ -189,7 +210,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [pin, authMode, selectedStaffId]);
+  }, [pin, authMode, selectedStaffId, isLockedOut]);
 
   const handleManualSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -560,12 +581,25 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
               })}
             </div>
 
-            {/* Error Message */}
-            {pinError && (
+            {/* Error Message or Lockout Security Banner */}
+            {isLockedOut ? (
+              <div className="w-full bg-red-500/10 border border-red-500/40 rounded-2xl p-3 mb-3 text-center space-y-1 animate-pulse">
+                <div className="flex items-center justify-center gap-1.5 text-red-500 font-bold text-xs">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>Security Lockout: 3 Failed Attempts</span>
+                </div>
+                <p className={`text-[11px] ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                  Keypad locked for security. Alert email dispatched to Didula.
+                </p>
+                <p className="text-sm font-mono font-extrabold text-red-500">
+                  Try again in {lockoutTimer}s
+                </p>
+              </div>
+            ) : pinError ? (
               <p className="text-xs text-red-500 font-semibold text-center mb-2 animate-shake">
                 {pinError}
               </p>
-            )}
+            ) : null}
 
             {/* Numeric Keypad */}
             <div className="grid grid-cols-3 gap-2.5 min-[420px]:gap-3 w-full">
@@ -573,8 +607,9 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
                 <button
                   key={num}
                   type="button"
+                  disabled={isLockedOut}
                   onClick={() => handleNumberPress(num.toString())}
-                  className={`h-11 min-[420px]:h-12 rounded-full text-xl min-[420px]:text-2xl font-semibold transition-all flex items-center justify-center select-none ${
+                  className={`h-11 min-[420px]:h-12 rounded-full text-xl min-[420px]:text-2xl font-semibold transition-all flex items-center justify-center select-none disabled:opacity-30 disabled:pointer-events-none ${
                     isDark 
                       ? 'bg-zinc-900 border border-zinc-800 text-white shadow-sm active:bg-zinc-800 active:scale-95' 
                       : 'bg-white shadow-[0_2px_6px_rgba(0,0,0,0.04)] border border-zinc-200/50 text-zinc-900 active:bg-zinc-100 active:scale-95'
@@ -589,8 +624,9 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
 
               <button
                 type="button"
+                disabled={isLockedOut}
                 onClick={() => handleNumberPress('0')}
-                className={`h-11 min-[420px]:h-12 rounded-full text-xl min-[420px]:text-2xl font-semibold transition-all flex items-center justify-center select-none ${
+                className={`h-11 min-[420px]:h-12 rounded-full text-xl min-[420px]:text-2xl font-semibold transition-all flex items-center justify-center select-none disabled:opacity-30 disabled:pointer-events-none ${
                   isDark 
                     ? 'bg-zinc-900 border border-zinc-800 text-white shadow-sm active:bg-zinc-800 active:scale-95' 
                     : 'bg-white shadow-[0_2px_6px_rgba(0,0,0,0.04)] border border-zinc-200/50 text-zinc-900 active:bg-zinc-100 active:scale-95'
@@ -601,8 +637,9 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
 
               <button
                 type="button"
+                disabled={isLockedOut}
                 onClick={handleBackspace}
-                className={`h-11 min-[420px]:h-12 rounded-full transition-all flex items-center justify-center select-none ${
+                className={`h-11 min-[420px]:h-12 rounded-full transition-all flex items-center justify-center select-none disabled:opacity-30 disabled:pointer-events-none ${
                   isDark 
                     ? 'text-zinc-400 hover:text-white active:bg-zinc-800' 
                     : 'text-zinc-800 active:bg-zinc-200/60'
