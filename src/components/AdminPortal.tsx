@@ -27,7 +27,9 @@ import {
   Mail,
   ShieldCheck,
   CheckCircle2,
-  Smartphone
+  Smartphone,
+  AlertTriangle,
+  AlertCircle
 } from 'lucide-react';
 import { Appointment, SalonService, StaffMember, AppointmentStatus, ServiceCategory, CurrentStaffUser } from '../types';
 import { StorageService } from '../services/storage';
@@ -79,6 +81,75 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [showProfileMenu, setShowProfileMenu] = useState<boolean>(false);
   const [actionAppointment, setActionAppointment] = useState<Appointment | null>(null);
   const [showInstallGuide, setShowInstallGuide] = useState<boolean>(false);
+
+  // Modern In-App Confirm & Alert Dialog state
+  const [customDialog, setCustomDialog] = useState<{
+    isOpen: boolean;
+    type: 'confirm' | 'alert';
+    variant?: 'danger' | 'warning' | 'info';
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm: () => void | Promise<void>;
+    onCancel?: () => void;
+  } | null>(null);
+
+  const closeCustomDialog = () => setCustomDialog(null);
+
+  const confirmAction = ({
+    title,
+    message,
+    confirmText = 'Confirm',
+    cancelText = 'Cancel',
+    variant = 'danger',
+    onConfirm
+  }: {
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    variant?: 'danger' | 'warning' | 'info';
+    onConfirm: () => void | Promise<void>;
+  }) => {
+    setCustomDialog({
+      isOpen: true,
+      type: 'confirm',
+      variant,
+      title,
+      message,
+      confirmText,
+      cancelText,
+      onConfirm: async () => {
+        closeCustomDialog();
+        await onConfirm();
+      },
+      onCancel: closeCustomDialog
+    });
+  };
+
+  const showAlert = ({
+    title,
+    message,
+    confirmText = 'OK',
+    variant = 'warning'
+  }: {
+    title: string;
+    message: string;
+    confirmText?: string;
+    variant?: 'danger' | 'warning' | 'info';
+  }) => {
+    setCustomDialog({
+      isOpen: true,
+      type: 'alert',
+      variant,
+      title,
+      message,
+      confirmText,
+      onConfirm: closeCustomDialog,
+      onCancel: closeCustomDialog
+    });
+  };
 
   // Calendar selected date
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(() => {
@@ -204,11 +275,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   const handleDeleteAppointment = (id: string) => {
-    if (window.confirm('Delete this appointment record?')) {
-      StorageService.deleteAppointment(id);
-      onAppointmentsUpdated();
-      setActionAppointment(null);
-    }
+    confirmAction({
+      title: 'Delete Appointment',
+      message: 'Are you sure you want to permanently delete this appointment record?',
+      confirmText: 'Delete',
+      variant: 'danger',
+      onConfirm: () => {
+        StorageService.deleteAppointment(id);
+        onAppointmentsUpdated();
+        setActionAppointment(null);
+      }
+    });
   };
 
   // Helper for image compression to data URL (keeps localStorage compact & fast)
@@ -279,7 +356,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       const compressedDataUrl = await compressImageToDataUrl(file);
       setStaffFormAvatar(compressedDataUrl);
     } catch (err: any) {
-      alert(err?.message || 'Could not load photo. Please try a different image.');
+      showAlert({
+        title: 'Photo Upload Failed',
+        message: err?.message || 'Could not load photo. Please try a different image.',
+        variant: 'danger'
+      });
     } finally {
       setIsProcessingStaffPhoto(false);
       if (e.target) e.target.value = '';
@@ -313,7 +394,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const handleSaveStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!staffFormName.trim()) {
-      alert('Please enter staff full name.');
+      showAlert({
+        title: 'Required Field',
+        message: 'Please enter staff full name.',
+        variant: 'warning'
+      });
       return;
     }
 
@@ -378,14 +463,25 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       staffFormRole === 'Admin';
 
     if (isTargetAdmin) {
-      alert('Cannot delete an admin account.');
+      showAlert({
+        title: 'Action Not Allowed',
+        message: 'Cannot delete an admin account.',
+        variant: 'warning'
+      });
       return;
     }
-    if (window.confirm('Remove this staff member from the salon?')) {
-      await FirebaseService.deleteStaff(id);
-      onStaffUpdated();
-      setShowStaffModal(false);
-    }
+
+    confirmAction({
+      title: 'Remove Staff Member',
+      message: `Are you sure you want to remove ${editingStaff?.name || 'this staff member'} from the salon?`,
+      confirmText: 'Remove',
+      variant: 'danger',
+      onConfirm: async () => {
+        await FirebaseService.deleteStaff(id);
+        onStaffUpdated();
+        setShowStaffModal(false);
+      }
+    });
   };
 
   // Service Form State
@@ -407,7 +503,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       const compressedDataUrl = await compressImageToDataUrl(file);
       setServiceFormImage(compressedDataUrl);
     } catch (err: any) {
-      alert(err?.message || 'Could not load photo.');
+      showAlert({
+        title: 'Photo Upload Failed',
+        message: err?.message || 'Could not load photo.',
+        variant: 'danger'
+      });
     } finally {
       setIsProcessingServicePhoto(false);
       if (e.target) e.target.value = '';
@@ -439,7 +539,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const handleSaveService = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!serviceFormName.trim()) {
-      alert('Please enter service name.');
+      showAlert({
+        title: 'Required Field',
+        message: 'Please enter service name.',
+        variant: 'warning'
+      });
       return;
     }
 
@@ -476,11 +580,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   const handleDeleteService = async (srvId: string) => {
-    if (window.confirm('Delete this service from the salon catalog?')) {
-      await FirebaseService.deleteService(srvId);
-      onServicesUpdated();
-      setShowServiceModal(false);
-    }
+    confirmAction({
+      title: 'Delete Service',
+      message: `Are you sure you want to remove "${editingService?.name || 'this service'}" from the salon catalog?`,
+      confirmText: 'Delete',
+      variant: 'danger',
+      onConfirm: async () => {
+        await FirebaseService.deleteService(srvId);
+        onServicesUpdated();
+        setShowServiceModal(false);
+      }
+    });
   };
 
   return (
@@ -1121,10 +1231,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <button
                       type="button"
                       onClick={() => {
-                        if (window.confirm('Log out of staff portal?')) {
-                          localStorage.removeItem('aquiness_staff_auth');
-                          if (onLockPortal) onLockPortal();
-                        }
+                        confirmAction({
+                          title: 'Sign Out',
+                          message: 'Are you sure you want to sign out of the staff portal?',
+                          confirmText: 'Sign Out',
+                          variant: 'danger',
+                          onConfirm: () => {
+                            localStorage.removeItem('aquiness_staff_auth');
+                            if (onLockPortal) onLockPortal();
+                          }
+                        });
                       }}
                       className="w-full p-4 flex items-center gap-3 text-left hover:bg-red-50/50 transition-colors text-red-600"
                     >
@@ -1960,10 +2076,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  if (window.confirm('Sign out of staff portal?')) {
-                    localStorage.removeItem('aquiness_staff_auth');
-                    if (onLockPortal) onLockPortal();
-                  }
+                  confirmAction({
+                    title: 'Sign Out',
+                    message: 'Are you sure you want to sign out of the staff portal?',
+                    confirmText: 'Sign Out',
+                    variant: 'danger',
+                    onConfirm: () => {
+                      setShowProfileMenu(false);
+                      localStorage.removeItem('aquiness_staff_auth');
+                      if (onLockPortal) onLockPortal();
+                    }
+                  });
                 }}
                 className="w-full py-3 px-4 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-bold text-sm flex items-center gap-3 text-left transition-colors"
               >
@@ -1985,6 +2108,82 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       {/* iOS / Mobile App Install Modal */}
       {showInstallGuide && (
         <IosInstallModal onClose={() => setShowInstallGuide(false)} />
+      )}
+
+      {/* ----------------- MODERN IN-APP CONFIRM & ALERT MODAL ----------------- */}
+      {customDialog && customDialog.isOpen && (
+        <div 
+          className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn"
+          onClick={closeCustomDialog}
+        >
+          <div 
+            className="bg-white w-full max-w-sm rounded-[28px] shadow-2xl border border-zinc-100 p-6 text-center transform transition-all animate-scaleUp overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Top Icon */}
+            <div className="flex items-center justify-center mb-4">
+              {customDialog.variant === 'danger' && (
+                <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center ring-8 ring-red-50/60">
+                  <Trash2 className="w-7 h-7 stroke-[2.2]" />
+                </div>
+              )}
+              {customDialog.variant === 'warning' && (
+                <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center ring-8 ring-amber-50/60">
+                  <AlertTriangle className="w-7 h-7 stroke-[2.2]" />
+                </div>
+              )}
+              {customDialog.variant === 'info' && (
+                <div className="w-14 h-14 rounded-2xl bg-blue-50 text-[#0d6efd] flex items-center justify-center ring-8 ring-blue-50/60">
+                  <AlertCircle className="w-7 h-7 stroke-[2.2]" />
+                </div>
+              )}
+            </div>
+
+            {/* Title */}
+            <h3 className="text-lg font-extrabold text-zinc-900 tracking-tight leading-snug">
+              {customDialog.title}
+            </h3>
+
+            {/* Message */}
+            <p className="text-sm text-zinc-500 mt-2 leading-relaxed px-2">
+              {customDialog.message}
+            </p>
+
+            {/* Action Buttons */}
+            <div className="mt-6 space-y-2.5">
+              {customDialog.type === 'confirm' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={customDialog.onConfirm}
+                    className={`w-full py-3.5 px-4 rounded-2xl font-bold text-sm shadow-md active:scale-[0.98] transition-all ${
+                      customDialog.variant === 'danger'
+                        ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-500/20'
+                        : 'bg-[#0d6efd] hover:bg-blue-600 text-white shadow-blue-500/20'
+                    }`}
+                  >
+                    {customDialog.confirmText || 'Confirm'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={customDialog.onCancel}
+                    className="w-full py-3 px-4 rounded-2xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold text-sm active:scale-[0.98] transition-all"
+                  >
+                    {customDialog.cancelText || 'Cancel'}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={customDialog.onConfirm}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-sm shadow-md active:scale-[0.98] transition-all"
+                >
+                  {customDialog.confirmText || 'OK'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
