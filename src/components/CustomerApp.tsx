@@ -443,7 +443,8 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                     <img 
                       src="/logo.png" 
                       alt="Aquiness Barber" 
-                      className="relative w-10 h-10 rounded-full object-cover ring-2 ring-[#e5a43b] shadow-md shrink-0"
+                      className="relative w-10 h-10 rounded-full object-cover ring-2 ring-[#e5a43b] shadow-md shrink-0 pointer-events-none select-none"
+                      draggable={false}
                     />
                   </div>
                   <div className="min-w-0">
@@ -1564,14 +1565,15 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
               }`}>
                 <div 
                   onClick={handleLogoTap}
-                  className="relative shrink-0 cursor-pointer select-none active:scale-95 transition-transform"
-                  title="Salon Aquiness"
+                  className="relative shrink-0 select-none cursor-default"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
                 >
                   <div className="absolute -inset-1 rounded-full blur-sm opacity-80 bg-gradient-to-r from-[#e5a43b] to-[#d9982f] pointer-events-none" />
                   <img
                     src="/logo.png"
                     alt="Aquiness Barber"
-                    className="relative w-14 h-14 rounded-full object-cover ring-2 ring-[#e5a43b] shrink-0"
+                    className="relative w-14 h-14 rounded-full object-cover ring-2 ring-[#e5a43b] shrink-0 pointer-events-none"
+                    draggable={false}
                   />
                 </div>
                 <div>
