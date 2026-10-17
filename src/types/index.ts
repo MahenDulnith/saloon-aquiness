@@ -12,6 +12,7 @@ export interface SalonService {
   popular?: boolean;
   active?: boolean; // show in client booking toggle
   offeredBy?: string[]; // staff IDs or 'all'
+  image?: string; // photo/thumbnail for service
 }
 
 export interface StaffMember {

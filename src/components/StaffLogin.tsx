@@ -386,7 +386,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
                     className="flex flex-col items-center group focus:outline-none"
                   >
                     <div 
-                      className={`w-12 h-12 min-[420px]:w-14 min-[420px]:h-14 rounded-full flex items-center justify-center font-bold text-lg min-[420px]:text-xl transition-all ${
+                      className={`w-12 h-12 min-[420px]:w-14 min-[420px]:h-14 rounded-full flex items-center justify-center font-bold text-lg min-[420px]:text-xl transition-all overflow-hidden relative ${
                         isSelected 
                           ? isDark 
                             ? 'bg-amber-500 text-zinc-950 ring-2 ring-amber-500 ring-offset-2 ring-offset-zinc-950 shadow-lg shadow-amber-500/30' 
@@ -396,7 +396,19 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
                             : 'bg-white text-zinc-900 border border-zinc-200 shadow-sm hover:border-zinc-300'
                       }`}
                     >
-                      {initial}
+                      {member.avatar ? (
+                        <img
+                          src={member.avatar}
+                          alt={member.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      ) : null}
+                      <span className={member.avatar ? 'sr-only' : 'block'}>
+                        {initial}
+                      </span>
                     </div>
                     <span className={`text-xs min-[420px]:text-sm font-bold mt-1.5 text-center truncate max-w-full ${
                       isDark ? 'text-zinc-100' : 'text-zinc-900'

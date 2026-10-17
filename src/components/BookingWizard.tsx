@@ -374,11 +374,21 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({
                   }`}
                 >
                   <div className="flex items-start gap-4">
-                    <img
-                      src={member.avatar}
-                      alt={member.name}
-                      className="w-14 h-14 rounded-full object-cover border-2 border-zinc-700"
-                    />
+                    <div className="w-14 h-14 rounded-full border-2 border-zinc-700 overflow-hidden bg-zinc-800 flex items-center justify-center shrink-0">
+                      {member.avatar ? (
+                        <img
+                          src={member.avatar}
+                          alt={member.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      ) : null}
+                      <span className={member.avatar ? 'sr-only' : 'font-bold text-lg text-amber-400'}>
+                        {member.name.charAt(0)}
+                      </span>
+                    </div>
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <h3 className="font-semibold text-white text-base">{member.name}</h3>

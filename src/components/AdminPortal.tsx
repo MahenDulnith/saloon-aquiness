@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -190,6 +190,52 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
+  // Helper for image compression to data URL (keeps localStorage compact & fast)
+  const compressImageToDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      if (!file.type.startsWith('image/')) {
+        reject(new Error('Please select an image file (JPG, PNG, WebP).'));
+        return;
+      }
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Failed to read photo file.'));
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('Failed to process image.'));
+        img.onload = () => {
+          const maxWidth = 320;
+          const maxHeight = 320;
+          let { width, height } = img;
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(img.src);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   // Staff Form State
   const [staffFormName, setStaffFormName] = useState('');
   const [staffFormPhone, setStaffFormPhone] = useState('');
@@ -197,6 +243,25 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [staffFormRole, setStaffFormRole] = useState<'Stylist' | 'Admin'>('Stylist');
   const [staffFormPin, setStaffFormPin] = useState('1234');
   const [staffFormActive, setStaffFormActive] = useState(true);
+  const [staffFormAvatar, setStaffFormAvatar] = useState<string>('');
+  const [isProcessingStaffPhoto, setIsProcessingStaffPhoto] = useState<boolean>(false);
+  const staffFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleStaffPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsProcessingStaffPhoto(true);
+      const compressedDataUrl = await compressImageToDataUrl(file);
+      setStaffFormAvatar(compressedDataUrl);
+    } catch (err: any) {
+      alert(err?.message || 'Could not load photo. Please try a different image.');
+    } finally {
+      setIsProcessingStaffPhoto(false);
+      if (e.target) e.target.value = '';
+    }
+  };
 
   const openNewStaffModal = () => {
     setEditingStaff(null);
@@ -206,6 +271,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setStaffFormRole('Stylist');
     setStaffFormPin('1234');
     setStaffFormActive(true);
+    setStaffFormAvatar('');
     setShowStaffModal(true);
   };
 
@@ -217,6 +283,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setStaffFormRole(st.role.toLowerCase().includes('admin') || st.role.toLowerCase().includes('founder') ? 'Admin' : 'Stylist');
     setStaffFormPin(st.pin || '1234');
     setStaffFormActive(st.available !== false);
+    setStaffFormAvatar(st.avatar || '');
     setShowStaffModal(true);
   };
 
@@ -228,7 +295,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
 
     const firstName = staffFormName.trim().split(' ')[0];
-    const initial = firstName.charAt(0).toUpperCase();
 
     const staffMemberToSave: StaffMember = {
       id: editingStaff ? editingStaff.id : `staff-${Date.now().toString(36)}`,
@@ -237,7 +303,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       specialty: editingStaff ? editingStaff.specialty : 'Hair & Beard Styling',
       rating: editingStaff ? editingStaff.rating : 5.0,
       reviewsCount: editingStaff ? editingStaff.reviewsCount : 1,
-      avatar: editingStaff ? editingStaff.avatar : '',
+      avatar: staffFormAvatar.trim(),
       email: staffFormEmail.trim() || `${firstName.toLowerCase()}@saloonaquiness.lk`,
       phone: staffFormPhone.trim(),
       pin: staffFormPin.trim() || '1234',
@@ -247,6 +313,26 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     };
 
     StorageService.addOrUpdateStaff(staffMemberToSave);
+
+    // Sync auth user avatar in session if current user edited their own profile
+    if (currentUser.id === staffMemberToSave.id) {
+      currentUser.avatar = staffMemberToSave.avatar;
+      currentUser.name = staffMemberToSave.name;
+      try {
+        const saved = localStorage.getItem('aquiness_staff_auth');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.user) {
+            parsed.user.avatar = staffMemberToSave.avatar;
+            parsed.user.name = staffMemberToSave.name;
+            localStorage.setItem('aquiness_staff_auth', JSON.stringify(parsed));
+          }
+        }
+      } catch (err) {
+        console.error('Error syncing auth session avatar:', err);
+      }
+    }
+
     onStaffUpdated();
     setShowStaffModal(false);
   };
@@ -269,6 +355,25 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [serviceFormDuration, setServiceFormDuration] = useState('45');
   const [serviceFormDescription, setServiceFormDescription] = useState('');
   const [serviceFormActive, setServiceFormActive] = useState(true);
+  const [serviceFormImage, setServiceFormImage] = useState<string>('');
+  const [isProcessingServicePhoto, setIsProcessingServicePhoto] = useState<boolean>(false);
+  const serviceFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleServicePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsProcessingServicePhoto(true);
+      const compressedDataUrl = await compressImageToDataUrl(file);
+      setServiceFormImage(compressedDataUrl);
+    } catch (err: any) {
+      alert(err?.message || 'Could not load photo.');
+    } finally {
+      setIsProcessingServicePhoto(false);
+      if (e.target) e.target.value = '';
+    }
+  };
 
   const openNewServiceModal = () => {
     setEditingService(null);
@@ -277,6 +382,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setServiceFormDuration('45');
     setServiceFormDescription('');
     setServiceFormActive(true);
+    setServiceFormImage('');
     setShowServiceModal(true);
   };
 
@@ -287,6 +393,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setServiceFormDuration(String(srv.durationMinutes));
     setServiceFormDescription(srv.description || '');
     setServiceFormActive(srv.active !== false);
+    setServiceFormImage(srv.image || '');
     setShowServiceModal(true);
   };
 
@@ -306,7 +413,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       description: serviceFormDescription.trim(),
       popular: editingService ? editingService.popular : false,
       active: serviceFormActive,
-      offeredBy: ['all']
+      offeredBy: ['all'],
+      image: serviceFormImage.trim() || undefined
     };
 
     StorageService.addOrUpdateService(serviceToSave);
@@ -353,10 +461,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <button
                 type="button"
                 onClick={() => setShowProfileMenu(true)}
-                className="w-11 h-11 rounded-full bg-[#0d6efd] text-white font-extrabold text-lg flex items-center justify-center shadow-md active:scale-95 transition-transform"
+                className="w-11 h-11 rounded-full bg-[#0d6efd] text-white font-extrabold text-lg flex items-center justify-center shadow-md active:scale-95 transition-transform overflow-hidden ring-2 ring-white/80"
                 title={`${currentUser.name} (${currentUser.role})`}
               >
-                {currentUser.name.charAt(0).toUpperCase()}
+                {currentUser.avatar ? (
+                  <img
+                    src={currentUser.avatar}
+                    alt={currentUser.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                ) : null}
+                <span className={currentUser.avatar ? 'sr-only' : 'block'}>
+                  {currentUser.name.charAt(0).toUpperCase()}
+                </span>
               </button>
             </div>
 
@@ -766,25 +886,46 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </p>
 
                 {/* Profile Card */}
-                <div className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-200/60 mt-4 flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-[#0d6efd] text-white font-extrabold text-xl flex items-center justify-center shadow-sm shrink-0">
-                    {currentUser.name.charAt(0)}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-base text-zinc-900 truncate">
-                        {currentUser.name}
-                      </h3>
-                      {isAdmin && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
-                          Owner
-                        </span>
-                      )}
+                <div 
+                  onClick={() => {
+                    const me = staff.find(s => s.id === currentUser.id);
+                    if (me) openEditStaffModal(me);
+                  }}
+                  className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-200/60 mt-4 flex items-center justify-between gap-3 cursor-pointer hover:bg-zinc-50/70 transition-colors group"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-12 h-12 rounded-full bg-[#0d6efd] text-white font-extrabold text-xl flex items-center justify-center shadow-sm shrink-0 overflow-hidden ring-1 ring-zinc-200/80">
+                      {currentUser.avatar ? (
+                        <img
+                          src={currentUser.avatar}
+                          alt={currentUser.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      ) : null}
+                      <span className={currentUser.avatar ? 'sr-only' : 'block'}>
+                        {currentUser.name.charAt(0)}
+                      </span>
                     </div>
-                    <p className="text-xs text-zinc-500 truncate">
-                      {currentUser.title || (isAdmin ? 'Admin' : 'Stylist')} · {currentUser.email}
-                    </p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-base text-zinc-900 truncate">
+                          {currentUser.name}
+                        </h3>
+                        {isAdmin && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                            Owner
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-zinc-500 truncate">
+                        {currentUser.title || (isAdmin ? 'Admin' : 'Stylist')} · {currentUser.email}
+                      </p>
+                    </div>
                   </div>
+                  <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-zinc-600 transition-colors shrink-0" />
                 </div>
 
                 {/* Group 1: SALON MANAGEMENT */}
@@ -956,8 +1097,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       >
                         <div className="flex items-center gap-3.5 min-w-0">
                           {/* Round Avatar Circle */}
-                          <div className="w-11 h-11 rounded-full bg-[#dbeafe] text-[#0d6efd] font-extrabold text-lg flex items-center justify-center shrink-0">
-                            {initial}
+                          <div className="w-11 h-11 rounded-full bg-[#dbeafe] text-[#0d6efd] font-extrabold text-lg flex items-center justify-center shrink-0 overflow-hidden ring-1 ring-zinc-200/80">
+                            {member.avatar ? (
+                              <img
+                                src={member.avatar}
+                                alt={member.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLElement).style.display = 'none';
+                                }}
+                              />
+                            ) : null}
+                            <span className={member.avatar ? 'sr-only' : 'block'}>
+                              {initial}
+                            </span>
                           </div>
 
                           <div className="min-w-0">
@@ -1232,12 +1385,61 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               
               {/* Photo Area */}
               <div className="flex flex-col items-center justify-center py-2">
-                <div className="w-20 h-20 rounded-full bg-[#dbeafe] text-[#0d6efd] flex flex-col items-center justify-center font-bold shadow-inner">
-                  <Plus className="w-8 h-8 stroke-[2.5]" />
+                <input
+                  type="file"
+                  ref={staffFileInputRef}
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleStaffPhotoChange}
+                />
+                <div
+                  onClick={() => staffFileInputRef.current?.click()}
+                  className="w-20 h-20 rounded-full flex flex-col items-center justify-center font-bold shadow-inner relative group cursor-pointer overflow-hidden transition-transform active:scale-95"
+                >
+                  {staffFormAvatar ? (
+                    <>
+                      <img
+                        src={staffFormAvatar}
+                        alt="Staff avatar"
+                        className="w-full h-full object-cover rounded-full"
+                      />
+                      <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-full">
+                        <Camera className="w-6 h-6 text-white" />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="w-full h-full bg-[#dbeafe] text-[#0d6efd] flex flex-col items-center justify-center rounded-full hover:bg-blue-100 transition-colors">
+                      {isProcessingStaffPhoto ? (
+                        <div className="w-6 h-6 border-2 border-[#0d6efd] border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Plus className="w-8 h-8 stroke-[2.5]" />
+                      )}
+                    </div>
+                  )}
                 </div>
-                <span className="text-xs font-bold text-[#0d6efd] mt-2 cursor-pointer hover:underline">
-                  Add photo
-                </span>
+
+                <div className="flex items-center gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => staffFileInputRef.current?.click()}
+                    className="text-xs font-bold text-[#0d6efd] hover:underline"
+                    disabled={isProcessingStaffPhoto}
+                  >
+                    {isProcessingStaffPhoto ? 'Uploading...' : staffFormAvatar ? 'Change photo' : 'Add photo'}
+                  </button>
+                  {staffFormAvatar && (
+                    <>
+                      <span className="text-zinc-300">·</span>
+                      <button
+                        type="button"
+                        onClick={() => setStaffFormAvatar('')}
+                        className="text-xs font-bold text-red-500 hover:underline"
+                      >
+                        Remove
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* DETAILS GROUP */}
@@ -1582,8 +1784,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
           <div className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 space-y-4">
             <div className="flex items-center gap-3 pb-3 border-b border-zinc-100">
-              <div className="w-12 h-12 rounded-full bg-[#0d6efd] text-white font-extrabold text-xl flex items-center justify-center shadow-md">
-                {currentUser.name.charAt(0)}
+              <div className="w-12 h-12 rounded-full bg-[#0d6efd] text-white font-extrabold text-xl flex items-center justify-center shadow-md overflow-hidden ring-1 ring-zinc-200/80">
+                {currentUser.avatar ? (
+                  <img
+                    src={currentUser.avatar}
+                    alt={currentUser.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                ) : null}
+                <span className={currentUser.avatar ? 'sr-only' : 'block'}>
+                  {currentUser.name.charAt(0)}
+                </span>
               </div>
               <div className="min-w-0 flex-1">
                 <h4 className="font-bold text-base text-zinc-900 truncate">{currentUser.name}</h4>
@@ -1592,6 +1806,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
 
             <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowProfileMenu(false);
+                  const me = staff.find(s => s.id === currentUser.id);
+                  if (me) openEditStaffModal(me);
+                }}
+                className="w-full py-3 px-4 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#0d6efd] font-bold text-sm flex items-center gap-3 text-left transition-colors"
+              >
+                <Camera className="w-4 h-4" /> Edit Profile & Photo
+              </button>
+
               {onExitToClientWebsite && (
                 <button
                   type="button"
