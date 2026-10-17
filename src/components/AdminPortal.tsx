@@ -87,6 +87,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [actionAppointment, setActionAppointment] = useState<Appointment | null>(null);
   const [showInstallGuide, setShowInstallGuide] = useState<boolean>(false);
 
+  // Walk-in / Direct Job Modal State (for villagers and walk-in clients)
+  const [showWalkInModal, setShowWalkInModal] = useState<boolean>(false);
+  const [walkInCustomerName, setWalkInCustomerName] = useState<string>('');
+  const [walkInCustomerPhone, setWalkInCustomerPhone] = useState<string>('');
+  const [walkInServiceId, setWalkInServiceId] = useState<string>('');
+  const [walkInPrice, setWalkInPrice] = useState<string>('');
+  const [walkInStaffId, setWalkInStaffId] = useState<string>('');
+  const [walkInStatus, setWalkInStatus] = useState<AppointmentStatus>('completed');
+  const [walkInNotes, setWalkInNotes] = useState<string>('');
+  const [isSavingWalkIn, setIsSavingWalkIn] = useState<boolean>(false);
+
   // Modern In-App Confirm & Alert Dialog state
   const [customDialog, setCustomDialog] = useState<{
     isOpen: boolean;
@@ -686,6 +697,97 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     });
   };
 
+  // Walk-in / Direct Job Handlers (for villagers and phone-less visitors)
+  const openWalkInModal = () => {
+    const firstService = services[0] || null;
+    setWalkInCustomerName('');
+    setWalkInCustomerPhone('');
+    setWalkInServiceId(firstService ? firstService.id : '');
+    setWalkInPrice(firstService ? String(firstService.price) : '1500');
+    // Default to currently logged-in staff member or first available staff
+    const myStaffMember = staff.find(s => s.id === activeUser.id) || 
+                          staff.find(s => s.name.toLowerCase().includes(activeUser.name.toLowerCase())) ||
+                          staff[0];
+    setWalkInStaffId(myStaffMember ? myStaffMember.id : 'staff-1');
+    setWalkInStatus('completed'); // Default to completed as requested ("after finish the job they can mark done")
+    setWalkInNotes('');
+    setShowWalkInModal(true);
+  };
+
+  const handleWalkInServiceChange = (srvId: string) => {
+    setWalkInServiceId(srvId);
+    const chosen = services.find(s => s.id === srvId);
+    if (chosen) {
+      setWalkInPrice(String(chosen.price));
+    }
+  };
+
+  const handleSaveWalkInJob = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const chosenService = services.find(s => s.id === walkInServiceId) || services[0];
+    if (!chosenService) {
+      showAlert({
+        title: 'Select Service',
+        message: 'Please select a salon service.',
+        variant: 'warning'
+      });
+      return;
+    }
+
+    const assignedStaff = staff.find(s => s.id === walkInStaffId) || staff[0];
+    const customerNameFinal = walkInCustomerName.trim() || 'Walk-in Client';
+    const customerPhoneFinal = walkInCustomerPhone.trim() || 'N/A';
+    const finalPrice = parseFloat(walkInPrice) || chosenService.price || 0;
+
+    // Current time formatted e.g. "11:45 AM"
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const formattedHours = hours % 12 || 12;
+    const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+    const currentTimeSlot = `${formattedHours}:${formattedMinutes} ${ampm}`;
+
+    setIsSavingWalkIn(true);
+    try {
+      const newWalkInApt = {
+        customerName: customerNameFinal,
+        customerPhone: customerPhoneFinal,
+        serviceId: chosenService.id,
+        serviceName: chosenService.name,
+        servicePrice: finalPrice,
+        serviceDuration: chosenService.durationMinutes || 45,
+        staffId: assignedStaff.id,
+        staffName: assignedStaff.name,
+        date: todayIso,
+        timeSlot: currentTimeSlot,
+        status: walkInStatus,
+        notes: walkInNotes.trim() ? `[Walk-in] ${walkInNotes.trim()}` : '[Walk-in Direct Job]',
+        isWalkIn: true
+      };
+
+      await FirebaseService.createAppointment(newWalkInApt);
+      onAppointmentsUpdated();
+      setShowWalkInModal(false);
+
+      showAlert({
+        title: walkInStatus === 'completed' ? 'Job Completed & Billed' : 'Walk-in Added to Queue',
+        message: walkInStatus === 'completed' 
+          ? `Rs. ${finalPrice.toLocaleString()} recorded for ${customerNameFinal} (${chosenService.name}) by ${assignedStaff.name.split(' ')[0]}.`
+          : `${customerNameFinal} added to queue for ${assignedStaff.name.split(' ')[0]}.`,
+        variant: 'info'
+      });
+    } catch (err: any) {
+      showAlert({
+        title: 'Error Saving Job',
+        message: err?.message || 'Could not record walk-in job. Please try again.',
+        variant: 'danger'
+      });
+    } finally {
+      setIsSavingWalkIn(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f0f2f6] text-zinc-900 select-none font-sans flex flex-col justify-between">
       
@@ -710,32 +812,65 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </p>
                 </div>
 
-                {/* User Avatar Circle */}
-                <button
-                  type="button"
-                  onClick={() => setShowProfileMenu(true)}
-                  className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#0d6efd] text-white font-extrabold text-base sm:text-lg flex items-center justify-center shadow-md active:scale-95 transition-transform overflow-hidden ring-2 ring-white/80 shrink-0"
-                  title={`${activeUser.name} (${activeUser.role})`}
-                >
-                  {activeUser.avatar ? (
-                    <img
-                      src={activeUser.avatar}
-                      alt={activeUser.name}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLElement).style.display = 'none';
-                      }}
-                    />
-                  ) : null}
-                  <span className={activeUser.avatar ? 'sr-only' : 'block'}>
-                    {activeUser.name.charAt(0).toUpperCase()}
-                  </span>
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* + Walk-in Button */}
+                  <button
+                    type="button"
+                    onClick={openWalkInModal}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-[#0d6efd] hover:bg-[#0b5ed7] text-white rounded-full font-bold text-xs shadow-xs active:scale-95 transition-all"
+                    title="Record Walk-in Customer / Direct Job"
+                  >
+                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>+ Walk-in</span>
+                  </button>
+
+                  {/* User Avatar Circle */}
+                  <button
+                    type="button"
+                    onClick={() => setShowProfileMenu(true)}
+                    className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#0d6efd] text-white font-extrabold text-base sm:text-lg flex items-center justify-center shadow-md active:scale-95 transition-transform overflow-hidden ring-2 ring-white/80 shrink-0"
+                    title={`${activeUser.name} (${activeUser.role})`}
+                  >
+                    {activeUser.avatar ? (
+                      <img
+                        src={activeUser.avatar}
+                        alt={activeUser.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    ) : null}
+                    <span className={activeUser.avatar ? 'sr-only' : 'block'}>
+                      {activeUser.name.charAt(0).toUpperCase()}
+                    </span>
+                  </button>
+                </div>
               </div>
             </header>
 
             {/* SCROLLABLE MAIN CONTENT */}
             <main className="w-full max-w-md mx-auto flex-1 px-4 pt-3.5 pb-28">
+              {/* Quick Walk-in Logger Bar */}
+              <div className="bg-gradient-to-r from-blue-50/90 to-amber-50/70 border border-blue-200/80 rounded-2xl p-3 flex items-center justify-between shadow-xs mb-3.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-[#0d6efd] text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Plus className="w-4 h-4 stroke-[3]" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-xs text-zinc-900 block">Walk-in Customer / Direct Job?</span>
+                    <span className="text-[11px] text-zinc-500">Log villager haircut or add to queue</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={openWalkInModal}
+                  className="px-3.5 py-1.5 bg-[#0d6efd] hover:bg-[#0b5ed7] text-white font-bold text-xs rounded-xl shadow-xs active:scale-95 transition-all whitespace-nowrap"
+                >
+                  + Add Job
+                </button>
+              </div>
+
               {/* Metrics Card */}
               <div className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-200/60">
               <div className="grid grid-cols-3 text-center">
@@ -855,9 +990,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     >
                       {/* Card Header: Client Name & Status Badge */}
                       <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-bold text-base text-zinc-900 leading-snug">
-                          {apt.customerName}
-                        </h3>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-bold text-base text-zinc-900 leading-snug">
+                            {apt.customerName}
+                          </h3>
+                          {apt.isWalkIn && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                              Walk-in
+                            </span>
+                          )}
+                        </div>
 
                         {/* Status Badge */}
                         {isPending && (
@@ -954,13 +1096,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                         {/* Right Utility Icons: Call & More */}
                         <div className="flex items-center gap-1.5 ml-auto">
-                          <a
-                            href={`tel:${apt.customerPhone}`}
-                            className="w-9 h-9 rounded-full bg-blue-50 text-[#0d6efd] flex items-center justify-center hover:bg-blue-100 active:scale-95 transition-all"
-                            title={`Call ${apt.customerName}`}
-                          >
-                            <Phone className="w-4 h-4" />
-                          </a>
+                          {apt.customerPhone && apt.customerPhone !== 'N/A' && apt.customerPhone.trim() !== '' && (
+                            <a
+                              href={`tel:${apt.customerPhone}`}
+                              className="w-9 h-9 rounded-full bg-blue-50 text-[#0d6efd] flex items-center justify-center hover:bg-blue-100 active:scale-95 transition-all"
+                              title={`Call ${apt.customerName}`}
+                            >
+                              <Phone className="w-4 h-4" />
+                            </a>
+                          )}
 
                           <button
                             type="button"
@@ -2143,6 +2287,248 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </button>
                 </div>
               )}
+
+            </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* ----------------- MODAL: WALK-IN / NEW DIRECT JOB (FOR VILLAGERS & QUICK JOBS) ----------------- */}
+      {showWalkInModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
+          <div className="bg-[#f0f2f6] w-full max-w-md max-h-[92vh] sm:max-h-[85vh] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-slideUp">
+            
+            {/* Header */}
+            <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md px-4 py-3.5 border-b border-zinc-200/80 flex items-center justify-between shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowWalkInModal(false)}
+                className="text-zinc-600 font-bold text-sm hover:text-zinc-900"
+              >
+                Cancel
+              </button>
+              <h3 className="font-extrabold text-base text-zinc-900">
+                Walk-in / Direct Job
+              </h3>
+              <button
+                type="submit"
+                form="walk-in-form"
+                disabled={isSavingWalkIn}
+                className="text-[#0d6efd] font-bold text-sm hover:text-blue-700 disabled:opacity-50"
+              >
+                {isSavingWalkIn ? 'Saving...' : 'Record'}
+              </button>
+            </div>
+
+            {/* Scrollable Form Body */}
+            <form
+              id="walk-in-form"
+              onSubmit={handleSaveWalkInJob}
+              className="p-4 overflow-y-auto space-y-4 flex-1 text-left"
+            >
+              {/* Quick Info Box */}
+              <div className="bg-blue-50 border border-blue-200/80 rounded-2xl p-3 flex items-start gap-2.5">
+                <Sparkles className="w-4 h-4 text-[#0d6efd] shrink-0 mt-0.5" />
+                <p className="text-xs text-blue-900 leading-relaxed">
+                  For villagers or direct walk-ins who didn't book online. Name and phone are optional!
+                </p>
+              </div>
+
+              {/* SECTION: CLIENT INFO */}
+              <div>
+                <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase block px-1 mb-1.5">
+                  CUSTOMER DETAILS (OPTIONAL)
+                </span>
+                <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
+                  
+                  {/* Name Input */}
+                  <div className="p-3.5 flex items-center justify-between gap-2">
+                    <label className="text-sm font-bold text-zinc-900 w-28 shrink-0">Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Kamal (or leave blank)"
+                      value={walkInCustomerName}
+                      onChange={e => setWalkInCustomerName(e.target.value)}
+                      className="flex-1 text-right text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Preset chips */}
+                  <div className="px-3 py-2 bg-zinc-50 flex items-center gap-1.5 overflow-x-auto">
+                    <span className="text-[11px] text-zinc-400 font-medium shrink-0">Presets:</span>
+                    {['Walk-in Client', 'Villager', 'Regular Guest'].map(preset => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setWalkInCustomerName(preset)}
+                        className={`text-[11px] px-2 py-0.5 rounded-lg border transition-colors shrink-0 font-medium ${
+                          walkInCustomerName === preset
+                            ? 'bg-blue-100 border-blue-300 text-blue-800 font-bold'
+                            : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-100'
+                        }`}
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Phone Input */}
+                  <div className="p-3.5 flex items-center justify-between gap-2">
+                    <label className="text-sm font-bold text-zinc-900 w-28 shrink-0">Phone</label>
+                    <input
+                      type="tel"
+                      placeholder="Optional (or leave blank)"
+                      value={walkInCustomerPhone}
+                      onChange={e => setWalkInCustomerPhone(e.target.value)}
+                      className="flex-1 text-right text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none"
+                    />
+                  </div>
+
+                </div>
+              </div>
+
+              {/* SECTION: SERVICE & PRICING */}
+              <div>
+                <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase block px-1 mb-1.5">
+                  SERVICE & CHARGES
+                </span>
+                <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
+                  
+                  {/* Service Dropdown */}
+                  <div className="p-3.5 flex items-center justify-between gap-2">
+                    <label className="text-sm font-bold text-zinc-900 w-28 shrink-0">Service</label>
+                    <select
+                      value={walkInServiceId}
+                      onChange={e => handleWalkInServiceChange(e.target.value)}
+                      className="flex-1 text-right text-sm text-zinc-900 font-semibold focus:outline-none bg-transparent cursor-pointer max-w-[200px] truncate"
+                    >
+                      {services.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} (Rs. {s.price})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Custom / Editable Price */}
+                  <div className="p-3.5 flex items-center justify-between gap-2">
+                    <div>
+                      <label className="text-sm font-bold text-zinc-900 block">Price Charged (Rs.)</label>
+                      <span className="text-[11px] text-zinc-400">Can adjust for discounts/extras</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs font-bold text-zinc-500">Rs.</span>
+                      <input
+                        type="number"
+                        required
+                        value={walkInPrice}
+                        onChange={e => setWalkInPrice(e.target.value)}
+                        className="w-24 text-right text-base font-extrabold text-zinc-900 focus:outline-none bg-zinc-50 border border-zinc-200 px-2 py-1 rounded-lg"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Stylist Dropdown */}
+                  <div className="p-3.5 flex items-center justify-between gap-2">
+                    <label className="text-sm font-bold text-zinc-900 w-28 shrink-0">Stylist / Barber</label>
+                    <select
+                      value={walkInStaffId}
+                      onChange={e => setWalkInStaffId(e.target.value)}
+                      className="flex-1 text-right text-sm text-zinc-900 font-semibold focus:outline-none bg-transparent cursor-pointer max-w-[200px] truncate"
+                    >
+                      {staff.map(st => (
+                        <option key={st.id} value={st.id}>
+                          {st.name} {st.id === activeUser.id ? '(You)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* SECTION: JOB STATUS */}
+              <div>
+                <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase block px-1 mb-1.5">
+                  JOB STATUS
+                </span>
+                <div className="bg-white rounded-2xl p-3 shadow-sm border border-zinc-200/60 space-y-2">
+                  <div className="grid grid-cols-3 gap-1.5 p-1 bg-[#e2e5eb] rounded-xl text-xs font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setWalkInStatus('completed')}
+                      className={`py-2 px-1 rounded-lg transition-all ${
+                        walkInStatus === 'completed'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'text-zinc-700 hover:text-zinc-900'
+                      }`}
+                    >
+                      ✓ Done & Paid
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWalkInStatus('in_progress')}
+                      className={`py-2 px-1 rounded-lg transition-all ${
+                        walkInStatus === 'in_progress'
+                          ? 'bg-purple-600 text-white shadow-sm'
+                          : 'text-zinc-700 hover:text-zinc-900'
+                      }`}
+                    >
+                      In Chair
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWalkInStatus('pending')}
+                      className={`py-2 px-1 rounded-lg transition-all ${
+                        walkInStatus === 'pending'
+                          ? 'bg-amber-600 text-white shadow-sm'
+                          : 'text-zinc-700 hover:text-zinc-900'
+                      }`}
+                    >
+                      In Queue
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-zinc-500 text-center">
+                    {walkInStatus === 'completed' && 'Immediately counts into today\'s revenue & marks job finished.'}
+                    {walkInStatus === 'in_progress' && 'Marks the stylist busy in chair right now.'}
+                    {walkInStatus === 'pending' && 'Adds villager to the live waiting queue.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Notes Input */}
+              <div className="bg-white rounded-2xl p-3 shadow-sm border border-zinc-200/60">
+                <label className="text-xs font-bold text-zinc-400 tracking-wider uppercase block mb-1">
+                  NOTES (OPTIONAL)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Haircut + beard trim, paid cash"
+                  value={walkInNotes}
+                  onChange={e => setWalkInNotes(e.target.value)}
+                  className="w-full text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none"
+                />
+              </div>
+
+              {/* Big Action Submit Button */}
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={isSavingWalkIn}
+                  className="w-full py-3.5 bg-[#0d6efd] hover:bg-blue-600 text-white rounded-2xl font-extrabold text-sm shadow-md active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Check className="w-4 h-4 stroke-[2.5]" />
+                  <span>
+                    {isSavingWalkIn 
+                      ? 'Recording Job...' 
+                      : walkInStatus === 'completed'
+                        ? `Record Completed Job (Rs. ${Number(walkInPrice || 0).toLocaleString()})`
+                        : `Add to Queue (Rs. ${Number(walkInPrice || 0).toLocaleString()})`
+                    }
+                  </span>
+                </button>
+              </div>
 
             </form>
 

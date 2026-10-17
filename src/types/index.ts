@@ -54,6 +54,8 @@ export interface Appointment {
   timeSlot: string; // e.g. "10:30 AM"
   status: AppointmentStatus;
   notes?: string;
+  isWalkIn?: boolean;
+  paymentMethod?: string;
   createdAt: string;
 }
 
