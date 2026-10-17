@@ -257,7 +257,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
     }
   };
 
-  const activeStaffMembers = staffList.slice(0, 4);
+  const activeStaffMembers = staffList.length > 0 ? staffList : [currentSelectedMember];
 
   return (
     <div className={`fixed inset-0 z-50 overflow-y-auto flex flex-col items-center justify-between transition-colors duration-300 select-none ${
@@ -363,12 +363,12 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
 
           {/* 4. Staff Selector (Horizontal Row) - ONLY IN PIN MODE */}
           {authMode === 'pin' && (
-            <div className="grid grid-cols-4 gap-2.5 min-[420px]:gap-3.5 w-full mt-4 min-[420px]:mt-5">
+            <div className="flex items-center justify-center gap-3.5 min-[420px]:gap-5 w-full mt-4 min-[420px]:mt-5 flex-wrap">
               {activeStaffMembers.map((member) => {
                 const isSelected = selectedStaffId === member.id;
                 const firstName = member.name.split(' ')[0];
                 const initial = firstName.charAt(0);
-                const isMemberAdmin = member.id === 'staff-1' || member.name.toLowerCase().includes('didula');
+                const isMemberAdmin = member.id === 'staff-1' || member.name.toLowerCase().includes('didula') || member.role.toLowerCase().includes('admin');
 
                 return (
                   <button
@@ -383,7 +383,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
                         : (member.email || `${member.name.toLowerCase().split(' ')[0]}@saloonaquiness.lk`);
                       setEmail(defaultEmail);
                     }}
-                    className="flex flex-col items-center group focus:outline-none"
+                    className="flex flex-col items-center group focus:outline-none min-w-[64px] max-w-[80px]"
                   >
                     <div 
                       className={`w-12 h-12 min-[420px]:w-14 min-[420px]:h-14 rounded-full flex items-center justify-center font-bold text-lg min-[420px]:text-xl transition-all overflow-hidden relative ${
