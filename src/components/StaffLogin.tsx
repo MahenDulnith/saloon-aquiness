@@ -255,7 +255,8 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
       <button
         type="button"
         onClick={toggleTheme}
-        className={`fixed top-4 right-4 sm:top-6 sm:right-6 p-2.5 rounded-full transition-all duration-200 z-20 ${
+        style={{ top: 'max(env(safe-area-inset-top, 0px), 16px)' }}
+        className={`fixed right-4 min-[420px]:right-6 p-2.5 rounded-full transition-all duration-200 z-20 ${
           isDark 
             ? 'bg-zinc-900 border border-zinc-800 text-amber-400 hover:text-amber-300 hover:border-amber-500/40 shadow-lg' 
             : 'bg-white border border-zinc-200/90 text-zinc-700 hover:text-zinc-900 shadow-sm'
@@ -267,13 +268,19 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
       </button>
 
       {/* Main Full-Height Container */}
-      <div className="relative w-full max-w-[340px] sm:max-w-[360px] min-h-[100dvh] flex flex-col justify-between py-5 sm:py-7 px-3">
+      <div 
+        style={{
+          paddingTop: 'max(env(safe-area-inset-top, 0px), 14px)',
+          paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 14px)'
+        }}
+        className="relative w-full max-w-[340px] min-[390px]:max-w-[356px] min-[420px]:max-w-[390px] sm:max-w-[400px] min-h-[100dvh] flex flex-col justify-between px-3 min-[420px]:px-4"
+      >
         
         {/* UPPER SECTION: Logo, Title, Segmented Switcher, Staff Selector */}
         <div className="w-full flex flex-col items-center">
           
           {/* 1. Top Official Logo with Gold Glow */}
-          <div className="relative mt-2">
+          <div className="relative mt-1 min-[420px]:mt-2">
             <div className={`absolute -inset-2 rounded-full blur-md opacity-75 pointer-events-none ${
               isDark 
                 ? 'bg-gradient-to-r from-amber-500/70 via-amber-400/60 to-amber-600/70' 
@@ -282,24 +289,24 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
             <img 
               src="/logo.png" 
               alt="Aquiness Barber Logo" 
-              className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover ring-2 ring-amber-500 shadow-xl shadow-amber-500/35 hover:scale-105 transition-transform" 
+              className="relative w-16 h-16 min-[420px]:w-20 min-[420px]:h-20 rounded-full object-cover ring-2 ring-amber-500 shadow-xl shadow-amber-500/35 hover:scale-105 transition-transform" 
             />
           </div>
 
           {/* 2. Title & Subtitle */}
-          <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight mt-3 text-center ${
+          <h1 className={`text-2xl min-[420px]:text-3xl font-extrabold tracking-tight mt-2.5 min-[420px]:mt-3.5 text-center ${
             isDark ? 'text-white' : 'text-zinc-900'
           }`}>
             Staff sign in
           </h1>
-          <p className={`text-xs sm:text-sm font-medium text-center mt-1 px-2 leading-relaxed ${
+          <p className={`text-xs min-[420px]:text-sm font-medium text-center mt-1 px-2 leading-relaxed ${
             isDark ? 'text-zinc-400' : 'text-zinc-500'
           }`}>
             Aquiness Barber · choose your name, then enter your PIN
           </p>
 
           {/* 3. Segmented Control Pill Switcher */}
-          <div className={`w-full p-1 rounded-xl flex items-center mt-4 sm:mt-5 transition-colors ${
+          <div className={`w-full p-1 rounded-xl flex items-center mt-3.5 min-[420px]:mt-5 transition-colors ${
             isDark 
               ? 'bg-zinc-900 border border-zinc-800' 
               : 'bg-[#e2e5eb] shadow-inner'
@@ -307,7 +314,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
             <button
               type="button"
               onClick={() => { setAuthMode('pin'); setPinError(''); }}
-              className={`flex-1 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-bold text-center transition-all ${
+              className={`flex-1 py-1.5 min-[420px]:py-2 rounded-lg text-xs min-[420px]:text-sm font-bold text-center transition-all ${
                 authMode === 'pin' 
                   ? isDark 
                     ? 'bg-amber-500 text-zinc-950 shadow-md font-bold' 
@@ -322,7 +329,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
             <button
               type="button"
               onClick={() => { setAuthMode('email'); setEmailError(''); }}
-              className={`flex-1 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-bold text-center transition-all ${
+              className={`flex-1 py-1.5 min-[420px]:py-2 rounded-lg text-xs min-[420px]:text-sm font-bold text-center transition-all ${
                 authMode === 'email' 
                   ? isDark 
                     ? 'bg-amber-500 text-zinc-950 shadow-md font-bold' 
@@ -338,7 +345,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
 
           {/* 4. Staff Selector (Horizontal Row) */}
           {authMode === 'pin' && (
-            <div className="grid grid-cols-4 gap-3 w-full mt-5">
+            <div className="grid grid-cols-4 gap-2.5 min-[420px]:gap-3.5 w-full mt-4 min-[420px]:mt-6">
               {activeStaffMembers.map((member) => {
                 const isSelected = selectedStaffId === member.id;
                 const firstName = member.name.split(' ')[0];
@@ -357,7 +364,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
                     className="flex flex-col items-center group focus:outline-none"
                   >
                     <div 
-                      className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center font-bold text-lg sm:text-xl transition-all ${
+                      className={`w-12 h-12 min-[420px]:w-14 min-[420px]:h-14 rounded-full flex items-center justify-center font-bold text-lg min-[420px]:text-xl transition-all ${
                         isSelected 
                           ? isDark 
                             ? 'bg-amber-500 text-zinc-950 ring-2 ring-amber-500 ring-offset-2 ring-offset-zinc-950 shadow-lg shadow-amber-500/30' 
@@ -369,12 +376,12 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
                     >
                       {initial}
                     </div>
-                    <span className={`text-xs font-bold mt-1.5 text-center truncate max-w-full ${
+                    <span className={`text-xs min-[420px]:text-sm font-bold mt-1.5 text-center truncate max-w-full ${
                       isDark ? 'text-zinc-100' : 'text-zinc-900'
                     }`}>
                       {firstName}
                     </span>
-                    <span className={`text-[11px] text-center truncate max-w-full leading-none mt-0.5 ${
+                    <span className={`text-[11px] min-[420px]:text-xs text-center truncate max-w-full leading-none mt-0.5 ${
                       isDark 
                         ? (isMemberAdmin ? 'text-amber-400 font-semibold' : 'text-zinc-400') 
                         : 'text-zinc-500'
@@ -391,16 +398,16 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
 
         {/* BOTTOM SECTION: PIN DOTS, BUTTON, LINK, KEYBOARD ALL GROUPED CLOSE TOGETHER AT BOTTOM */}
         {authMode === 'pin' ? (
-          <div className="w-full flex flex-col items-center mt-auto pb-1 sm:pb-2">
+          <div className="w-full flex flex-col items-center mt-auto pb-1 min-[420px]:pb-2">
             
             {/* 5. 4 PIN Dots Indicator - comfortably placed above the button */}
-            <div className="flex items-center justify-center gap-3.5 mb-4">
+            <div className="flex items-center justify-center gap-3.5 min-[420px]:gap-4 mb-3.5 min-[420px]:mb-5">
               {[0, 1, 2, 3].map((index) => {
                 const isFilled = pin.length > index;
                 return (
                   <div
                     key={index}
-                    className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full transition-all duration-200 ${
+                    className={`w-3.5 h-3.5 min-[420px]:w-4 min-[420px]:h-4 rounded-full transition-all duration-200 ${
                       isFilled
                         ? pinError 
                           ? 'bg-red-500 scale-125' 
@@ -427,7 +434,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
             <button
               type="button"
               onClick={() => handleManualSubmit()}
-              className={`w-full py-3.5 sm:py-4 rounded-2xl font-bold text-sm sm:text-base active:scale-[0.99] transition-all text-center mb-2 ${
+              className={`w-full py-3.5 min-[420px]:py-4 rounded-2xl font-bold text-sm min-[420px]:text-base active:scale-[0.99] transition-all text-center mb-2 min-[420px]:mb-2.5 ${
                 isDark 
                   ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-zinc-950 shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40' 
                   : 'bg-[#0d6efd] hover:bg-[#0b5ed7] text-white shadow-md shadow-[#0d6efd]/20'
@@ -440,7 +447,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
             <button
               type="button"
               onClick={onCancel}
-              className={`text-xs sm:text-sm font-semibold transition-colors mb-3 sm:mb-4 ${
+              className={`text-xs min-[420px]:text-sm font-semibold transition-colors mb-2.5 min-[420px]:mb-3.5 ${
                 isDark ? 'text-zinc-400 hover:text-amber-400' : 'text-[#0d6efd] hover:text-[#0b5ed7]'
               }`}
             >
@@ -448,13 +455,13 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
             </button>
 
             {/* 8. NUMERIC KEYPAD PILLS AT THE VERY BOTTOM */}
-            <div className="grid grid-cols-3 gap-2.5 sm:gap-3 w-full">
+            <div className="grid grid-cols-3 gap-2.5 min-[420px]:gap-3 w-full">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                 <button
                   key={num}
                   type="button"
                   onClick={() => handleNumberPress(num.toString())}
-                  className={`h-11 sm:h-12 rounded-full text-xl sm:text-2xl font-semibold transition-all flex items-center justify-center select-none ${
+                  className={`h-11 min-[420px]:h-12 rounded-full text-xl min-[420px]:text-2xl font-semibold transition-all flex items-center justify-center select-none ${
                     isDark 
                       ? 'bg-zinc-900 border border-zinc-800 text-white shadow-sm active:bg-zinc-800 active:scale-95' 
                       : 'bg-white shadow-[0_2px_6px_rgba(0,0,0,0.04)] border border-zinc-200/50 text-zinc-900 active:bg-zinc-100 active:scale-95'
@@ -470,7 +477,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
               <button
                 type="button"
                 onClick={() => handleNumberPress('0')}
-                className={`h-11 sm:h-12 rounded-full text-xl sm:text-2xl font-semibold transition-all flex items-center justify-center select-none ${
+                className={`h-11 min-[420px]:h-12 rounded-full text-xl min-[420px]:text-2xl font-semibold transition-all flex items-center justify-center select-none ${
                   isDark 
                     ? 'bg-zinc-900 border border-zinc-800 text-white shadow-sm active:bg-zinc-800 active:scale-95' 
                     : 'bg-white shadow-[0_2px_6px_rgba(0,0,0,0.04)] border border-zinc-200/50 text-zinc-900 active:bg-zinc-100 active:scale-95'
@@ -482,7 +489,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
               <button
                 type="button"
                 onClick={handleBackspace}
-                className={`h-11 sm:h-12 rounded-full transition-all flex items-center justify-center select-none ${
+                className={`h-11 min-[420px]:h-12 rounded-full transition-all flex items-center justify-center select-none ${
                   isDark 
                     ? 'text-zinc-400 hover:text-white active:bg-zinc-800' 
                     : 'text-zinc-800 active:bg-zinc-200/60'
@@ -497,7 +504,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
           </div>
         ) : (
           /* EMAIL MODE FLOW */
-          <form onSubmit={handleEmailSubmit} className="w-full space-y-3.5 mt-auto pb-4">
+          <form onSubmit={handleEmailSubmit} className="w-full space-y-3.5 min-[420px]:space-y-4 mt-auto pb-2 min-[420px]:pb-4">
             <div>
               <label className={`block text-xs font-semibold mb-1 ${
                 isDark ? 'text-zinc-300' : 'text-zinc-600'
