@@ -72,16 +72,36 @@ export const StorageService = {
   // Staff
   getStaff(): StaffMember[] {
     const list = getItem<StaffMember[]>(STORAGE_KEYS.STAFF, []);
-    if (!list || list.length === 0) {
-      setItem(STORAGE_KEYS.STAFF, INITIAL_STAFF);
-      return INITIAL_STAFF;
-    }
-    // Clean out any legacy unsplash avatars
-    const cleaned = list.map(st => ({
+    // Automatically purge legacy demo/mock staff from old device storage
+    const cleaned = (list || []).filter(st => {
+      const isLegacyMock = ['staff-2', 'staff-3', 'staff-4'].includes(st.id) && 
+        (st.name.includes('Kaveen') || st.name.includes('Malith') || st.name.includes('Nuwan'));
+      return !isLegacyMock;
+    }).map(st => ({
       ...st,
       avatar: st.avatar && !st.avatar.includes('unsplash.com') ? st.avatar : ''
     }));
+
+    if (cleaned.length === 0) {
+      setItem(STORAGE_KEYS.STAFF, INITIAL_STAFF);
+      return INITIAL_STAFF;
+    }
+    if (cleaned.length !== (list || []).length) {
+      setItem(STORAGE_KEYS.STAFF, cleaned);
+    }
     return cleaned;
+  },
+
+  setStaff(list: StaffMember[]): void {
+    const cleaned = (list || []).filter(st => {
+      const isLegacyMock = ['staff-2', 'staff-3', 'staff-4'].includes(st.id) && 
+        (st.name.includes('Kaveen') || st.name.includes('Malith') || st.name.includes('Nuwan'));
+      return !isLegacyMock;
+    }).map(st => ({
+      ...st,
+      avatar: st.avatar && !st.avatar.includes('unsplash.com') ? st.avatar : ''
+    }));
+    setItem(STORAGE_KEYS.STAFF, cleaned.length > 0 ? cleaned : INITIAL_STAFF);
   },
 
   addOrUpdateStaff(staffMember: StaffMember): StaffMember[] {

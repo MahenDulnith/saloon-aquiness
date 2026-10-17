@@ -118,9 +118,14 @@ export const App: React.FC = () => {
     FirebaseService.initializeDatabase().then(() => loadData());
 
     // Real-time listener for live updates across all devices
-    const unsubscribe = FirebaseService.subscribeToAppointments((liveApts) => {
+    const unsubAppointments = FirebaseService.subscribeToAppointments((liveApts) => {
       setAppointments(liveApts);
       StorageService.setAppointments(liveApts);
+    });
+
+    const unsubStaff = FirebaseService.subscribeToStaff((liveStaff) => {
+      setStaff(liveStaff);
+      StorageService.setStaff(liveStaff);
     });
 
     // Listen to local storage events
@@ -132,7 +137,8 @@ export const App: React.FC = () => {
     window.addEventListener('storage', handleStorageUpdate);
 
     return () => {
-      unsubscribe();
+      unsubAppointments();
+      unsubStaff();
       window.removeEventListener('didula_storage_update', handleStorageUpdate);
       window.removeEventListener('storage', handleStorageUpdate);
     };

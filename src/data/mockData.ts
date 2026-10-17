@@ -95,44 +95,14 @@ export const INITIAL_STAFF: StaffMember[] = [
     name: 'Didula Perera',
     role: 'Founder & Master Stylist',
     specialty: 'Signature Scissor Work & VIP Grooming',
-    rating: 4.98,
-    reviewsCount: 340,
+    rating: 5.0,
+    reviewsCount: 1,
     avatar: '',
+    email: 'didula@saloonaquiness.lk',
+    pin: '1018',
     available: true,
-    workingDays: [1, 2, 3, 4, 5, 6]
-  },
-  {
-    id: 'staff-2',
-    name: 'Kaveen Silva',
-    role: 'Senior Barber & Fade Specialist',
-    specialty: 'Skin Fades, Texture Crops & Beard Art',
-    rating: 4.92,
-    reviewsCount: 215,
-    avatar: '',
-    available: true,
-    workingDays: [1, 2, 3, 4, 5, 6, 0]
-  },
-  {
-    id: 'staff-3',
-    name: 'Malith Fernando',
-    role: 'Hair Colorist & Spa Therapist',
-    specialty: 'Coloring, Keratin & Head Massages',
-    rating: 4.89,
-    reviewsCount: 168,
-    avatar: '',
-    available: true,
-    workingDays: [2, 3, 4, 5, 6, 0]
-  },
-  {
-    id: 'staff-4',
-    name: 'Nuwan Jayawardena',
-    role: 'Senior Skin & Aesthetic Specialist',
-    specialty: 'Detox Facials, Peels & Grooming',
-    rating: 4.95,
-    reviewsCount: 195,
-    avatar: '',
-    available: true,
-    workingDays: [1, 2, 4, 5, 6]
+    workingDays: [1, 2, 3, 4, 5, 6],
+    servicesOffered: ['all']
   }
 ];
 

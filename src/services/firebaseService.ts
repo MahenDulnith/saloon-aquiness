@@ -1,6 +1,7 @@
 import { 
   collection, 
   getDocs, 
+  getDoc,
   setDoc, 
   doc, 
   updateDoc, 
@@ -87,6 +88,21 @@ export const FirebaseService = {
           await deleteDoc(doc(db, COLLECTIONS.APPOINTMENTS, demoId));
         } catch (_) {}
       }
+
+      // Clean up any legacy demo/mock staff from Cloud Firestore
+      const demoMockStaffIds = ['staff-2', 'staff-3', 'staff-4'];
+      for (const demoStaffId of demoMockStaffIds) {
+        try {
+          const docRef = doc(db, COLLECTIONS.STAFF, demoStaffId);
+          const snap = await getDoc(docRef);
+          if (snap.exists()) {
+            const data = snap.data();
+            if (data?.name?.includes('Kaveen') || data?.name?.includes('Malith') || data?.name?.includes('Nuwan')) {
+              await deleteDoc(docRef);
+            }
+          }
+        } catch (_) {}
+      }
     } catch (error) {
       console.warn("Firestore initialize error (falling back to local cache):", error);
     }
@@ -142,13 +158,23 @@ export const FirebaseService = {
         await this.initializeDatabase();
         return StorageService.getStaff();
       }
-      return snap.docs.map(d => {
-        const st = d.data() as StaffMember;
-        return {
-          ...st,
-          avatar: st.avatar && !st.avatar.includes('unsplash.com') ? st.avatar : ''
-        };
-      });
+      const staffList = snap.docs
+        .map(d => {
+          const st = d.data() as StaffMember;
+          return {
+            ...st,
+            avatar: st.avatar && !st.avatar.includes('unsplash.com') ? st.avatar : ''
+          };
+        })
+        .filter(st => {
+          const isLegacyMock = ['staff-2', 'staff-3', 'staff-4'].includes(st.id) &&
+            (st.name.includes('Kaveen') || st.name.includes('Malith') || st.name.includes('Nuwan'));
+          return !isLegacyMock;
+        });
+
+      const finalList = staffList.length > 0 ? staffList : INITIAL_STAFF;
+      StorageService.setStaff(finalList);
+      return finalList;
     } catch (e) {
       console.warn("Error fetching staff from Firestore, using local cache:", e);
       return StorageService.getStaff();
@@ -270,6 +296,41 @@ export const FirebaseService = {
       return unsubscribe;
     } catch (e) {
       console.warn("Failed to subscribe to appointments:", e);
+      return () => {};
+    }
+  },
+
+  // Real-time listener for live staff sync across all devices
+  subscribeToStaff(onUpdate: (staff: StaffMember[]) => void): () => void {
+    if (!isFirebaseConfigured()) {
+      return () => {};
+    }
+
+    try {
+      const q = collection(db, COLLECTIONS.STAFF);
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const list = snapshot.docs
+          .map(d => {
+            const st = d.data() as StaffMember;
+            return {
+              ...st,
+              avatar: st.avatar && !st.avatar.includes('unsplash.com') ? st.avatar : ''
+            };
+          })
+          .filter(st => {
+            const isLegacyMock = ['staff-2', 'staff-3', 'staff-4'].includes(st.id) &&
+              (st.name.includes('Kaveen') || st.name.includes('Malith') || st.name.includes('Nuwan'));
+            return !isLegacyMock;
+          });
+        const finalList = list.length > 0 ? list : INITIAL_STAFF;
+        StorageService.setStaff(finalList);
+        onUpdate(finalList);
+      }, (err) => {
+        console.warn("Real-time staff listener note (offline or permission):", err);
+      });
+      return unsubscribe;
+    } catch (e) {
+      console.warn("Failed to subscribe to staff:", e);
       return () => {};
     }
   },
