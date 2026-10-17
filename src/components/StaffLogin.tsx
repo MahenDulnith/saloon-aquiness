@@ -50,6 +50,8 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
   const [pin, setPin] = useState<string>('');
   const pinRef = useRef<string>('');
   pinRef.current = pin;
+  const pinInputRef = useRef<HTMLInputElement>(null);
+  const [keypadMode, setKeypadMode] = useState<'native' | 'onscreen'>('native');
   const [pinError, setPinError] = useState<string>('');
 
   // Brute-force protection: Lockout and email alert on 3+ failed attempts
@@ -170,11 +172,37 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
         setTimeout(() => {
           setPin('');
           pinRef.current = '';
-          if (!isLockedOut) setPinError('');
+          if (!isLockedOut) {
+            setPinError('');
+            pinInputRef.current?.focus();
+          }
         }, 900);
       }
     }
   };
+
+  const handleNativeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isLockedOut) return;
+    const clean = e.target.value.replace(/\D/g, '').slice(0, 4);
+    setPin(clean);
+    pinRef.current = clean;
+    setPinError('');
+    if (clean.length === 4) {
+      setTimeout(() => {
+        verifyPin(clean);
+      }, 80);
+    }
+  };
+
+  // Auto-focus native numeric input for instant iPhone keyboard activation
+  useEffect(() => {
+    if (authMode === 'pin' && !isLockedOut && keypadMode === 'native') {
+      const timer = setTimeout(() => {
+        pinInputRef.current?.focus();
+      }, 120);
+      return () => clearTimeout(timer);
+    }
+  }, [authMode, isLockedOut, selectedStaffId, keypadMode]);
 
   const handleNumberPress = (digit: string) => {
     if (isLockedOut) return;
@@ -566,10 +594,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
 
         {/* BOTTOM SECTION */}
         {authMode === 'pin' ? (
-          <div 
-            className="w-full flex flex-col items-center mt-auto pb-1 min-[420px]:pb-2 touch-none select-none"
-            style={{ touchAction: 'none' }}
-          >
+          <div className="w-full flex flex-col items-center mt-auto pb-1 min-[420px]:pb-2">
             
             {/* "Enter PIN for Didula" label */}
             <p className={`text-xs min-[420px]:text-sm mb-2 text-center transition-colors ${
@@ -577,29 +602,6 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
             }`}>
               Enter PIN for <span className={`font-bold ${isDark ? 'text-white' : 'text-zinc-900'}`}>{currentSelectedMember.name.split(' ')[0]}</span>
             </p>
-
-            {/* 4 PIN Dots Indicator */}
-            <div className="flex items-center justify-center gap-3.5 min-[420px]:gap-4 mb-3.5 min-[420px]:mb-5 select-none pointer-events-none">
-              {[0, 1, 2, 3].map((index) => {
-                const isFilled = pin.length > index;
-                return (
-                  <div
-                    key={index}
-                    className={`w-3.5 h-3.5 min-[420px]:w-4 min-[420px]:h-4 rounded-full transition-all duration-150 ${
-                      isFilled
-                        ? pinError 
-                          ? 'bg-red-500 scale-125' 
-                          : isDark 
-                            ? 'bg-amber-400 scale-110 shadow-[0_0_8px_rgba(245,158,11,0.6)]' 
-                            : 'bg-zinc-900 scale-110'
-                        : isDark 
-                          ? 'bg-zinc-800 border border-zinc-700' 
-                          : 'bg-[#d0d4dc]'
-                    }`}
-                  />
-                );
-              })}
-            </div>
 
             {/* Error Message or Lockout Security Banner */}
             {isLockedOut ? (
@@ -621,61 +623,182 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
               </p>
             ) : null}
 
-            {/* Numeric Keypad */}
-            <div 
-              className="grid grid-cols-3 gap-2.5 min-[420px]:gap-3 w-full touch-none select-none"
-              style={{ touchAction: 'none', WebkitUserSelect: 'none' }}
-            >
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+            {keypadMode === 'native' ? (
+              /* NATIVE IPHONE NUMERIC KEYBOARD (Zero lag, instantaneous Apple hardware typing) */
+              <div className="w-full flex flex-col items-center">
+                {/* 4 Interactive Passcode Boxes with native numeric input */}
+                <div 
+                  onClick={() => pinInputRef.current?.focus()}
+                  className="relative cursor-pointer w-full max-w-[280px] my-3 select-none"
+                >
+                  <input
+                    ref={pinInputRef}
+                    type="password"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={4}
+                    value={pin}
+                    onChange={handleNativeInputChange}
+                    autoComplete="one-time-code"
+                    autoFocus
+                    disabled={isLockedOut}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                    style={{ fontSize: '16px' }}
+                  />
+
+                  <div className="flex items-center justify-center gap-3">
+                    {[0, 1, 2, 3].map((index) => {
+                      const isFilled = pin.length > index;
+                      const isCurrent = pin.length === index;
+
+                      return (
+                        <div
+                          key={index}
+                          className={`w-14 h-16 rounded-2xl flex items-center justify-center text-2xl font-black transition-all ${
+                            pinError
+                              ? 'border-2 border-red-500 bg-red-500/10 text-red-500 animate-shake'
+                              : isFilled
+                                ? isDark
+                                  ? 'border-2 border-amber-400 bg-zinc-900 text-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.25)]'
+                                  : 'border-2 border-[#0d6efd] bg-blue-50/60 text-[#0d6efd] shadow-sm'
+                                : isCurrent
+                                  ? isDark
+                                    ? 'border-2 border-amber-500/70 bg-zinc-900/80 animate-pulse'
+                                    : 'border-2 border-[#0d6efd]/70 bg-white shadow-sm animate-pulse'
+                                  : isDark
+                                    ? 'border border-zinc-800 bg-zinc-900/50 text-zinc-600'
+                                    : 'border border-zinc-200 bg-white text-zinc-400 shadow-xs'
+                          }`}
+                        >
+                          {isFilled ? (
+                            <span className="w-3.5 h-3.5 rounded-full bg-current block" />
+                          ) : (
+                            <span className="text-zinc-400/40 text-xl font-normal">·</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Keyboard trigger button */}
                 <button
-                  key={num}
                   type="button"
-                  disabled={isLockedOut}
-                  onClick={() => handleNumberPress(num.toString())}
-                  style={{ touchAction: 'none', WebkitTapHighlightColor: 'transparent' }}
-                  className={`h-11 min-[420px]:h-12 rounded-full text-xl min-[420px]:text-2xl font-semibold transition-colors duration-75 flex items-center justify-center select-none cursor-pointer disabled:opacity-30 disabled:pointer-events-none active:scale-[0.96] ${
+                  onClick={() => pinInputRef.current?.focus()}
+                  className={`mt-2 py-2 px-4 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
                     isDark 
-                      ? 'bg-zinc-900 border border-zinc-800 text-white shadow-sm active:bg-zinc-800' 
-                      : 'bg-white shadow-[0_2px_6px_rgba(0,0,0,0.04)] border border-zinc-200/50 text-zinc-900 active:bg-zinc-100'
+                      ? 'bg-zinc-900 text-zinc-300 hover:text-white border border-zinc-800' 
+                      : 'bg-white text-zinc-700 hover:text-zinc-900 border border-zinc-200/80 shadow-xs'
                   }`}
                 >
-                  {num}
+                  <KeyRound className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Tap to open iPhone keypad</span>
                 </button>
-              ))}
-              
-              {/* Bottom row: empty spacer, 0, backspace */}
-              <div />
 
-              <button
-                type="button"
-                disabled={isLockedOut}
-                onClick={() => handleNumberPress('0')}
-                style={{ touchAction: 'none', WebkitTapHighlightColor: 'transparent' }}
-                className={`h-11 min-[420px]:h-12 rounded-full text-xl min-[420px]:text-2xl font-semibold transition-colors duration-75 flex items-center justify-center select-none cursor-pointer disabled:opacity-30 disabled:pointer-events-none active:scale-[0.96] ${
-                  isDark 
-                    ? 'bg-zinc-900 border border-zinc-800 text-white shadow-sm active:bg-zinc-800' 
-                    : 'bg-white shadow-[0_2px_6px_rgba(0,0,0,0.04)] border border-zinc-200/50 text-zinc-900 active:bg-zinc-100'
-                }`}
-              >
-                0
-              </button>
+                {/* Switch to on-screen buttons toggle */}
+                <button
+                  type="button"
+                  onClick={() => setKeypadMode('onscreen')}
+                  className={`text-[11px] font-medium mt-3 underline transition-colors ${
+                    isDark ? 'text-zinc-500 hover:text-zinc-300' : 'text-zinc-400 hover:text-zinc-600'
+                  }`}
+                >
+                  Or use on-screen buttons
+                </button>
+              </div>
+            ) : (
+              /* ON-SCREEN BUTTONS MODE */
+              <div className="w-full flex flex-col items-center">
+                {/* 4 PIN Dots Indicator */}
+                <div className="flex items-center justify-center gap-3.5 min-[420px]:gap-4 mb-3.5 min-[420px]:mb-5 select-none pointer-events-none">
+                  {[0, 1, 2, 3].map((index) => {
+                    const isFilled = pin.length > index;
+                    return (
+                      <div
+                        key={index}
+                        className={`w-3.5 h-3.5 min-[420px]:w-4 min-[420px]:h-4 rounded-full transition-all duration-150 ${
+                          isFilled
+                            ? pinError 
+                              ? 'bg-red-500 scale-125' 
+                              : isDark 
+                                ? 'bg-amber-400 scale-110 shadow-[0_0_8px_rgba(245,158,11,0.6)]' 
+                                : 'bg-zinc-900 scale-110'
+                            : isDark 
+                              ? 'bg-zinc-800 border border-zinc-700' 
+                              : 'bg-[#d0d4dc]'
+                        }`}
+                      />
+                    );
+                  })}
+                </div>
 
-              <button
-                type="button"
-                disabled={isLockedOut}
-                onClick={handleBackspace}
-                style={{ touchAction: 'none', WebkitTapHighlightColor: 'transparent' }}
-                className={`h-11 min-[420px]:h-12 rounded-full transition-colors duration-75 flex items-center justify-center select-none cursor-pointer disabled:opacity-30 disabled:pointer-events-none active:scale-[0.96] ${
-                  isDark 
-                    ? 'text-zinc-400 hover:text-white active:bg-zinc-800' 
-                    : 'text-zinc-800 active:bg-zinc-200/60'
-                }`}
-                title="Backspace"
-                aria-label="Backspace"
-              >
-                <Delete className="w-6 h-6 stroke-[1.8]" />
-              </button>
-            </div>
+                {/* Numeric Keypad */}
+                <div 
+                  className="grid grid-cols-3 gap-2.5 min-[420px]:gap-3 w-full touch-none select-none"
+                  style={{ touchAction: 'none', WebkitUserSelect: 'none' }}
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      disabled={isLockedOut}
+                      onClick={() => handleNumberPress(num.toString())}
+                      style={{ touchAction: 'none', WebkitTapHighlightColor: 'transparent' }}
+                      className={`h-11 min-[420px]:h-12 rounded-full text-xl min-[420px]:text-2xl font-semibold transition-colors duration-75 flex items-center justify-center select-none cursor-pointer disabled:opacity-30 disabled:pointer-events-none active:scale-[0.96] ${
+                        isDark 
+                          ? 'bg-zinc-900 border border-zinc-800 text-white shadow-sm active:bg-zinc-800' 
+                          : 'bg-white shadow-[0_2px_6px_rgba(0,0,0,0.04)] border border-zinc-200/50 text-zinc-900 active:bg-zinc-100'
+                      }`}
+                    >
+                      {num}
+                    </button>
+                  ))}
+                  
+                  <div />
+
+                  <button
+                    type="button"
+                    disabled={isLockedOut}
+                    onClick={() => handleNumberPress('0')}
+                    style={{ touchAction: 'none', WebkitTapHighlightColor: 'transparent' }}
+                    className={`h-11 min-[420px]:h-12 rounded-full text-xl min-[420px]:text-2xl font-semibold transition-colors duration-75 flex items-center justify-center select-none cursor-pointer disabled:opacity-30 disabled:pointer-events-none active:scale-[0.96] ${
+                      isDark 
+                        ? 'bg-zinc-900 border border-zinc-800 text-white shadow-sm active:bg-zinc-800' 
+                        : 'bg-white shadow-[0_2px_6px_rgba(0,0,0,0.04)] border border-zinc-200/50 text-zinc-900 active:bg-zinc-100'
+                    }`}
+                  >
+                    0
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isLockedOut}
+                    onClick={handleBackspace}
+                    style={{ touchAction: 'none', WebkitTapHighlightColor: 'transparent' }}
+                    className={`h-11 min-[420px]:h-12 rounded-full transition-colors duration-75 flex items-center justify-center select-none cursor-pointer disabled:opacity-30 disabled:pointer-events-none active:scale-[0.96] ${
+                      isDark 
+                        ? 'text-zinc-400 hover:text-white active:bg-zinc-800' 
+                        : 'text-zinc-800 active:bg-zinc-200/60'
+                    }`}
+                    title="Backspace"
+                    aria-label="Backspace"
+                  >
+                    <Delete className="w-6 h-6 stroke-[1.8]" />
+                  </button>
+                </div>
+
+                {/* Switch back to native keypad toggle */}
+                <button
+                  type="button"
+                  onClick={() => setKeypadMode('native')}
+                  className={`text-[11px] font-medium mt-3 underline transition-colors ${
+                    isDark ? 'text-zinc-500 hover:text-zinc-300' : 'text-zinc-400 hover:text-zinc-600'
+                  }`}
+                >
+                  Switch to iPhone numeric keyboard
+                </button>
+              </div>
+            )}
 
             {/* Helper text & Back Link placed under keypad to prevent misclicks */}
             <p className={`text-[11px] min-[420px]:text-xs mt-3 min-[420px]:mt-3.5 text-center ${
