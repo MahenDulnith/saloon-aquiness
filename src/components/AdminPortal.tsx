@@ -963,14 +963,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-tight">
                     Queue
                   </h1>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <p className="text-xs sm:text-sm font-medium text-zinc-500">
-                      {formattedToday}
-                    </p>
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                      SLST (UTC+5:30)
-                    </span>
-                  </div>
+                  <p className="text-xs sm:text-sm font-medium text-zinc-500 mt-0.5">
+                    {formattedToday}
+                  </p>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -1904,12 +1899,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         <ChevronLeft className="w-4 h-4 -ml-1 stroke-[2.2]" />
                         Settings
                       </button>
-
-                      {/* Sri Lanka Time Confirmation Pill */}
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        Sri Lanka Time (SLST)
-                      </span>
                     </div>
 
                     <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-tight">
