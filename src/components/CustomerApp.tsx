@@ -72,6 +72,58 @@ function formatSlotDisplay(slot: string): string {
   return slot.replace(/^0/, '').replace(/ (AM|PM)/, '');
 }
 
+// Flat list of all available time slots in chronological order
+export const ALL_TIME_SLOTS: string[] = TIME_PERIODS.flatMap(p => p.slots);
+
+// Local date string in YYYY-MM-DD format (avoids UTC timezone shift issues in UTC+5:30)
+export function getLocalDateString(d: Date = new Date()): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Convert "09:30 AM" or "02:30 PM" to decimal hours (e.g. 9.5 or 14.5)
+export function parseSlotToHours(slot: string): number {
+  const match = slot.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return 0;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const period = match[3].toUpperCase();
+  if (period === 'PM' && hours < 12) hours += 12;
+  if (period === 'AM' && hours === 12) hours = 0;
+  return hours + minutes / 60;
+}
+
+// Check if a time slot is in the past for the specified date
+export function isSlotInPast(dateStr: string, slot: string, now: Date = new Date()): boolean {
+  const todayStr = getLocalDateString(now);
+  if (dateStr < todayStr) return true;
+  if (dateStr > todayStr) return false;
+
+  // On today's date: compare slot start time to current local time with a 10-minute buffer (0.166 hrs)
+  const currentHours = now.getHours() + now.getMinutes() / 60;
+  const slotHours = parseSlotToHours(slot);
+  return slotHours <= currentHours + 0.166;
+}
+
+// Computes smart default initial date & slot (defaults to tomorrow if all slots today have concluded)
+export function getInitialBookingDateAndSlot(): { date: string; slot: string } {
+  const now = new Date();
+  const todayStr = getLocalDateString(now);
+
+  const firstFutureSlotToday = ALL_TIME_SLOTS.find(slot => !isSlotInPast(todayStr, slot, now));
+  if (firstFutureSlotToday) {
+    return { date: todayStr, slot: firstFutureSlotToday };
+  }
+
+  // All slots today have passed -> default to tomorrow morning
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  const tomorrowStr = getLocalDateString(tomorrow);
+  return { date: tomorrowStr, slot: ALL_TIME_SLOTS[0] || '09:00 AM' };
+}
+
 export const CustomerApp: React.FC<CustomerAppProps> = ({
   services,
   staff,
@@ -113,8 +165,8 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
   const [step, setStep] = useState<number>(1);
   const [selectedService, setSelectedService] = useState<SalonService | null>(services[0] || null);
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null); // null = "Any Available"
-  const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('10:30 AM');
+  const [selectedDate, setSelectedDate] = useState<string>(() => getInitialBookingDateAndSlot().date);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>(() => getInitialBookingDateAndSlot().slot);
   
   // Client input details
   const [customerName, setCustomerName] = useState<string>('');
@@ -143,10 +195,14 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
   // Modal for viewing a saved pass QR
   const [viewingPass, setViewingPass] = useState<Appointment | null>(null);
 
-  // Real-time status calculator for header
+  // Real-time status calculator for header & past-slot expiry ticker
   const [salonStatus, setSalonStatus] = useState(getSalonStatus());
+  const [timeTick, setTimeTick] = useState<number>(0);
   useEffect(() => {
-    const timer = setInterval(() => setSalonStatus(getSalonStatus()), 60000);
+    const timer = setInterval(() => {
+      setSalonStatus(getSalonStatus());
+      setTimeTick(t => t + 1);
+    }, 60000);
     return () => clearInterval(timer);
   }, []);
 
@@ -157,7 +213,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
     for (let i = 0; i < 14; i++) {
       const d = new Date(today);
       d.setDate(today.getDate() + i);
-      const iso = d.toISOString().split('T')[0];
+      const iso = getLocalDateString(d);
       const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
       const month = d.toLocaleDateString('en-US', { month: 'short' });
       const dayNum = d.getDate();
@@ -226,6 +282,26 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
       .map(apt => apt.timeSlot);
   }, [appointments, selectedDate, selectedStaff]);
 
+  // Whether the selected date has at least one valid future slot available
+  const hasAvailableSlotsOnSelectedDate = useMemo(() => {
+    return ALL_TIME_SLOTS.some(slot => 
+      !isSlotInPast(selectedDate, slot) && !bookedSlots.includes(slot)
+    );
+  }, [selectedDate, bookedSlots, timeTick]);
+
+  // Keep selectedTimeSlot valid when date, bookedSlots, or current time changes
+  useEffect(() => {
+    const isPast = isSlotInPast(selectedDate, selectedTimeSlot);
+    const isBooked = bookedSlots.includes(selectedTimeSlot);
+
+    if (isPast || isBooked || !selectedTimeSlot) {
+      const firstValidSlot = ALL_TIME_SLOTS.find(slot => 
+        !isSlotInPast(selectedDate, slot) && !bookedSlots.includes(slot)
+      );
+      setSelectedTimeSlot(firstValidSlot || '');
+    }
+  }, [selectedDate, bookedSlots, timeTick]);
+
   // Quick pre-select service & jump to stylist step
   const handleSelectServiceAndAdvance = (service: SalonService) => {
     setSelectedService(service);
@@ -242,6 +318,18 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
     if (!selectedService) {
       setFormError('Please choose a service');
       setStep(1);
+      return;
+    }
+
+    if (!selectedTimeSlot || isSlotInPast(selectedDate, selectedTimeSlot)) {
+      setFormError('The selected time slot has passed. Please choose an upcoming time slot.');
+      setStep(3);
+      return;
+    }
+
+    if (bookedSlots.includes(selectedTimeSlot)) {
+      setFormError('The selected time slot is already booked. Please choose another slot.');
+      setStep(3);
       return;
     }
 
@@ -921,6 +1009,38 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                   })}
                 </div>
 
+                {/* Day Concluded / Fully Booked Alert */}
+                {!hasAvailableSlotsOnSelectedDate && (
+                  <div className={`p-4 rounded-2xl border text-center space-y-2 mt-2 ${
+                    isDark 
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' 
+                      : 'bg-amber-50 border-amber-200 text-amber-900'
+                  }`}>
+                    <div className="flex items-center justify-center gap-2 font-bold text-sm">
+                      <Clock className="w-4 h-4 shrink-0 text-amber-500" />
+                      <span>All slots for this day have concluded</span>
+                    </div>
+                    <p className={`text-xs ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                      All booking slots for this date have passed or are booked. Please pick an upcoming date to reserve.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextDate = dateOptions.find(d => d.iso > selectedDate);
+                        if (nextDate) setSelectedDate(nextDate.iso);
+                      }}
+                      className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 ${
+                        isDark 
+                          ? 'bg-[#e5a43b] text-zinc-950 hover:bg-[#d9982f]' 
+                          : 'bg-zinc-900 text-white hover:bg-zinc-800'
+                      }`}
+                    >
+                      <span>View Next Day</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
                 {/* TIME PERIODS (MORNING / AFTERNOON / EVENING) */}
                 <div className="space-y-4 pt-1">
                   {TIME_PERIODS.map(group => (
@@ -931,23 +1051,28 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
 
                       <div className="grid grid-cols-3 gap-2.5">
                         {group.slots.map(slot => {
+                          const isPast = isSlotInPast(selectedDate, slot);
                           const isBooked = bookedSlots.includes(slot);
-                          const isSelected = selectedTimeSlot === slot;
+                          const isUnavailable = isBooked || isPast;
+                          const isSelected = selectedTimeSlot === slot && !isUnavailable;
                           const displayTime = formatSlotDisplay(slot);
 
                           return (
                             <button
                               key={slot}
                               type="button"
-                              disabled={isBooked}
+                              disabled={isUnavailable}
                               onClick={() => setSelectedTimeSlot(slot)}
                               className={`py-3 px-2 rounded-2xl text-sm font-bold transition-all ${
-                                isBooked
-                                  ? (isDark ? 'bg-zinc-900/40 text-zinc-600 border border-zinc-800/40 line-through opacity-40 cursor-not-allowed' : 'bg-zinc-100 text-zinc-400 border border-zinc-200 line-through cursor-not-allowed')
+                                isUnavailable
+                                  ? (isDark 
+                                      ? 'bg-zinc-900/30 text-zinc-600 border border-zinc-800/40 line-through opacity-35 cursor-not-allowed' 
+                                      : 'bg-zinc-100/70 text-zinc-400 border border-zinc-200/60 line-through opacity-40 cursor-not-allowed')
                                   : isSelected
                                   ? (isDark ? 'bg-[#e5a43b] text-zinc-950 shadow-sm font-extrabold' : 'bg-[#0d6efd] text-white shadow-md shadow-blue-500/20 font-extrabold')
                                   : (isDark ? 'bg-[#1c1c1e] border border-zinc-800/80 text-white hover:border-zinc-700' : 'bg-white border border-zinc-200/80 text-zinc-900 hover:border-zinc-300 shadow-sm')
                               }`}
+                              title={isPast ? 'This time slot has already passed' : isBooked ? 'This slot is already booked' : slot}
                             >
                               {displayTime}
                             </button>
@@ -969,8 +1094,8 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 >
                   <div className="max-w-md mx-auto px-4 pt-3 pb-2 space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                      <span className={isDark ? 'text-zinc-400' : 'text-zinc-500 font-medium'}>
-                        {formattedSelectedDate} · {selectedTimeSlot}
+                      <span className={`truncate max-w-[240px] font-medium ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                        {formattedSelectedDate} {selectedTimeSlot ? `· ${selectedTimeSlot}` : '· Pick a time'}
                       </span>
                       <span className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-zinc-900'}`}>
                         Rs. {(selectedService?.price || 2500).toLocaleString()}
@@ -979,17 +1104,25 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
 
                     <button
                       type="button"
+                      disabled={!selectedTimeSlot || isSlotInPast(selectedDate, selectedTimeSlot) || bookedSlots.includes(selectedTimeSlot)}
                       onClick={() => {
+                        if (!selectedTimeSlot || isSlotInPast(selectedDate, selectedTimeSlot) || bookedSlots.includes(selectedTimeSlot)) return;
                         setStep(4);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
                       className={`w-full py-3.5 rounded-2xl font-bold text-base shadow-md active:scale-[0.98] transition-all ${
-                        isDark
+                        (!selectedTimeSlot || isSlotInPast(selectedDate, selectedTimeSlot) || bookedSlots.includes(selectedTimeSlot))
+                          ? (isDark 
+                              ? 'bg-zinc-800/80 text-zinc-500 border border-zinc-700/40 cursor-not-allowed opacity-60' 
+                              : 'bg-zinc-200 text-zinc-400 border border-zinc-300 cursor-not-allowed opacity-60')
+                          : isDark
                           ? 'bg-[#e5a43b] hover:bg-[#d9982f] text-zinc-950 shadow-[#e5a43b]/15'
                           : 'bg-[#0d6efd] text-white hover:bg-blue-600 shadow-blue-500/20'
                       }`}
                     >
-                      Continue
+                      {(!selectedTimeSlot || isSlotInPast(selectedDate, selectedTimeSlot) || bookedSlots.includes(selectedTimeSlot))
+                        ? 'Select an Available Time'
+                        : 'Continue'}
                     </button>
                   </div>
                 </div>
