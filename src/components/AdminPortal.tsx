@@ -1,10 +1,32 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  Calendar, CheckCircle, Clock, XCircle, 
-  Search, Plus, Trash2, Phone, 
-  DollarSign, Users, Scissors, Check, Sparkles, Lock,
-  Crown, LogOut, UserCheck, Menu, X, Globe, ArrowLeft,
-  BarChart3, TrendingUp, Award, ArrowRight
+  Calendar as CalendarIcon, 
+  Clock, 
+  Search, 
+  Phone, 
+  Check, 
+  Sparkles, 
+  Lock,
+  LogOut, 
+  Globe, 
+  ChevronRight, 
+  ChevronLeft,
+  MoreHorizontal, 
+  Plus, 
+  Camera, 
+  Users, 
+  Scissors, 
+  BarChart3, 
+  TrendingUp, 
+  X, 
+  User, 
+  Trash2,
+  CalendarDays,
+  ListOrdered,
+  SlidersHorizontal,
+  Mail,
+  ShieldCheck,
+  CheckCircle2
 } from 'lucide-react';
 import { Appointment, SalonService, StaffMember, AppointmentStatus, ServiceCategory, CurrentStaffUser } from '../types';
 import { StorageService } from '../services/storage';
@@ -32,159 +54,126 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onExitToClientWebsite,
   onLockPortal
 }) => {
-  const [activeTab, setActiveTab] = useState<'appointments' | 'reports' | 'services' | 'staff'>('appointments');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [dateFilter, setDateFilter] = useState<string>('all'); // 'all' or 'today'
-  const [stylistScope, setStylistScope] = useState<'all' | 'mine'>('all');
-  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+  // Navigation tabs: 'queue' | 'calendar' | 'clients' | 'settings'
+  const [activeTab, setActiveTab] = useState<'queue' | 'calendar' | 'clients' | 'settings'>('queue');
 
-  // Service form state (Admin only)
-  const [showAddServiceModal, setShowAddServiceModal] = useState<boolean>(false);
-  const [newServiceName, setNewServiceName] = useState<string>('');
-  const [newServiceCategory, setNewServiceCategory] = useState<ServiceCategory>('Hair');
-  const [newServicePrice, setNewServicePrice] = useState<number>(2000);
-  const [newServiceDuration, setNewServiceDuration] = useState<number>(30);
-  const [newServiceDescription, setNewServiceDescription] = useState<string>('');
+  // Queue sub-filters
+  const [queueScope, setQueueScope] = useState<'all' | 'mine'>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Settings subviews: 'root' | 'staff' | 'services' | 'analytics'
+  const [settingsSubView, setSettingsSubView] = useState<'root' | 'staff' | 'services' | 'analytics'>('root');
+
+  // Modals
+  const [showStaffModal, setShowStaffModal] = useState<boolean>(false);
+  const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
+
+  const [showServiceModal, setShowServiceModal] = useState<boolean>(false);
+  const [editingService, setEditingService] = useState<SalonService | null>(null);
+
+  const [showProfileMenu, setShowProfileMenu] = useState<boolean>(false);
+  const [actionAppointment, setActionAppointment] = useState<Appointment | null>(null);
+
+  // Calendar selected date
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(() => {
+    return new Date().toISOString().split('T')[0];
+  });
 
   const todayIso = new Date().toISOString().split('T')[0];
   const isAdmin = currentUser.role === 'admin';
 
-  // Stats calculation
+  // Format today's date (e.g. "Saturday, 17 October")
+  const formattedToday = useMemo(() => {
+    const d = new Date();
+    return d.toLocaleDateString('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long'
+    });
+  }, []);
+
+  // Compute key metrics
   const stats = useMemo(() => {
-    const total = appointments.length;
-    const pending = appointments.filter(a => a.status === 'pending').length;
-    const confirmed = appointments.filter(a => a.status === 'confirmed').length;
-    const inChair = appointments.filter(a => a.status === 'in_progress').length;
-    const completed = appointments.filter(a => a.status === 'completed').length;
     const todayAppointments = appointments.filter(a => a.date === todayIso && a.status !== 'cancelled');
-    const todayCount = todayAppointments.length;
-    
-    const totalRevenue = appointments
-      .filter(a => a.status === 'completed' || a.status === 'confirmed')
-      .reduce((sum, a) => sum + a.servicePrice, 0);
-
+    const pendingCount = appointments.filter(a => a.status === 'pending').length;
+    const inChairCount = appointments.filter(a => a.status === 'in_progress').length;
+    const bookedTodayCount = todayAppointments.length;
     const todayRevenue = todayAppointments
-      .filter(a => a.status === 'completed' || a.status === 'confirmed')
+      .filter(a => a.status === 'completed' || a.status === 'confirmed' || a.status === 'in_progress')
       .reduce((sum, a) => sum + a.servicePrice, 0);
 
-    const avgTicket = total > 0 ? Math.round(totalRevenue / (completed + confirmed || 1)) : 0;
-
-    return { total, pending, confirmed, inChair, completed, todayCount, totalRevenue, todayRevenue, avgTicket };
+    return { pendingCount, inChairCount, bookedTodayCount, todayRevenue };
   }, [appointments, todayIso]);
 
-  // Analytics for the full reports dashboard
-  const reportData = useMemo(() => {
-    // Stylist performance breakdown
-    const stylistBreakdown = staff.map(st => {
-      const staffApts = appointments.filter(a => 
-        a.staffId === st.id || 
-        a.staffName.toLowerCase().includes(st.name.toLowerCase())
-      );
-      const completedCount = staffApts.filter(a => a.status === 'completed').length;
-      const totalEarned = staffApts
-        .filter(a => a.status === 'completed' || a.status === 'confirmed')
-        .reduce((sum, a) => sum + a.servicePrice, 0);
+  // Filtered Queue Appointments
+  const filteredQueueAppointments = useMemo(() => {
+    return appointments.filter(apt => {
+      // Exclude cancelled/completed from live active queue unless searched
+      if (!searchQuery && (apt.status === 'cancelled' || apt.status === 'completed')) {
+        return false;
+      }
 
-      return {
-        id: st.id,
-        name: st.name,
-        role: st.role,
-        avatar: st.avatar,
-        appointmentsCount: staffApts.length,
-        completedCount,
-        revenue: totalEarned
-      };
+      // Stylist scope
+      if (queueScope === 'mine') {
+        const isMine = apt.staffId === currentUser.id || 
+          apt.staffName.toLowerCase().includes(currentUser.name.toLowerCase()) ||
+          currentUser.name.toLowerCase().includes(apt.staffName.toLowerCase());
+        if (!isMine) return false;
+      }
+
+      // Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchName = apt.customerName.toLowerCase().includes(q);
+        const matchPhone = apt.customerPhone.includes(q);
+        const matchService = apt.serviceName.toLowerCase().includes(q);
+        const matchStaff = apt.staffName.toLowerCase().includes(q);
+        return matchName || matchPhone || matchService || matchStaff;
+      }
+
+      return true;
     });
+  }, [appointments, queueScope, searchQuery, currentUser]);
 
-    // Category breakdown
-    const categories: Record<string, { count: number; revenue: number }> = {};
-    appointments.forEach(apt => {
-      const cat = services.find(s => s.id === apt.serviceId)?.category || 'General';
-      if (!categories[cat]) categories[cat] = { count: 0, revenue: 0 };
-      categories[cat].count += 1;
-      if (apt.status === 'completed' || apt.status === 'confirmed') {
-        categories[cat].revenue += apt.servicePrice;
+  // Unique clients derived from appointments
+  const clientsList = useMemo(() => {
+    const map = new Map<string, {
+      name: string;
+      phone: string;
+      email?: string;
+      totalVisits: number;
+      totalSpend: number;
+      lastVisit: string;
+      lastService: string;
+    }>();
+
+    appointments.forEach(a => {
+      const key = a.customerPhone || a.customerName;
+      if (!map.has(key)) {
+        map.set(key, {
+          name: a.customerName,
+          phone: a.customerPhone,
+          email: a.customerEmail,
+          totalVisits: 1,
+          totalSpend: a.servicePrice,
+          lastVisit: a.date,
+          lastService: a.serviceName
+        });
+      } else {
+        const item = map.get(key)!;
+        item.totalVisits += 1;
+        item.totalSpend += a.servicePrice;
+        if (a.date > item.lastVisit) {
+          item.lastVisit = a.date;
+          item.lastService = a.serviceName;
+        }
       }
     });
 
-    return { stylistBreakdown, categories };
-  }, [appointments, staff, services]);
+    return Array.from(map.values()).sort((a, b) => b.totalVisits - a.totalVisits);
+  }, [appointments]);
 
-  // Filtered appointments
-  const filteredAppointments = useMemo(() => {
-    return appointments.filter(apt => {
-      const matchStatus = statusFilter === 'all' || apt.status === statusFilter;
-      const matchDate = dateFilter === 'all' || (dateFilter === 'today' && apt.date === todayIso);
-      
-      const matchStylistScope = stylistScope === 'all' || (
-        apt.staffId === currentUser.id || 
-        apt.staffName.toLowerCase().includes(currentUser.name.toLowerCase()) ||
-        currentUser.name.toLowerCase().includes(apt.staffName.toLowerCase())
-      );
-
-      const matchSearch = 
-        apt.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        apt.customerPhone.includes(searchQuery) ||
-        apt.serviceName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        apt.staffName.toLowerCase().includes(searchQuery.toLowerCase());
-
-      return matchStatus && matchDate && matchStylistScope && matchSearch;
-    });
-  }, [appointments, statusFilter, dateFilter, stylistScope, currentUser, searchQuery, todayIso]);
-
-  // Status badge styling
-  const getStatusBadge = (status: AppointmentStatus) => {
-    switch (status) {
-      case 'pending':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30">
-            <Clock className="w-3 h-3" /> Pending
-          </span>
-        );
-      case 'confirmed':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/30">
-            <CheckCircle className="w-3 h-3" /> Confirmed
-          </span>
-        );
-      case 'in_progress':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-500/15 text-purple-400 border border-purple-500/30 animate-pulse">
-            <Sparkles className="w-3 h-3" /> In Chair
-          </span>
-        );
-      case 'completed':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-            <Check className="w-3 h-3" /> Completed
-          </span>
-        );
-      case 'cancelled':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-red-400 border border-red-500/30">
-            <XCircle className="w-3 h-3" /> Cancelled
-          </span>
-        );
-    }
-  };
-
-  // Distinct border & tint for appointment cards based on status
-  const getStatusCardStyle = (status: AppointmentStatus) => {
-    switch (status) {
-      case 'pending':
-        return 'border-l-4 border-l-amber-400 bg-amber-500/[0.03]';
-      case 'confirmed':
-        return 'border-l-4 border-l-blue-400 bg-blue-500/[0.03]';
-      case 'in_progress':
-        return 'border-l-4 border-l-purple-400 bg-purple-500/[0.04] shadow-md shadow-purple-500/5';
-      case 'completed':
-        return 'border-l-4 border-l-emerald-400 bg-emerald-500/[0.03]';
-      case 'cancelled':
-        return 'border-l-4 border-l-zinc-700 bg-zinc-900/40 opacity-70';
-    }
-  };
-
+  // Status updates
   const handleUpdateStatus = (id: string, status: AppointmentStatus) => {
     StorageService.updateAppointmentStatus(id, status);
     onAppointmentsUpdated();
@@ -194,902 +183,1443 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     if (window.confirm('Delete this appointment record?')) {
       StorageService.deleteAppointment(id);
       onAppointmentsUpdated();
+      setActionAppointment(null);
     }
   };
 
-  const handleToggleStaff = (id: string) => {
-    StorageService.toggleStaffAvailability(id);
-    onStaffUpdated();
+  // Staff Form State
+  const [staffFormName, setStaffFormName] = useState('');
+  const [staffFormPhone, setStaffFormPhone] = useState('');
+  const [staffFormEmail, setStaffFormEmail] = useState('');
+  const [staffFormRole, setStaffFormRole] = useState<'Stylist' | 'Admin'>('Stylist');
+  const [staffFormPin, setStaffFormPin] = useState('1234');
+  const [staffFormActive, setStaffFormActive] = useState(true);
+
+  const openNewStaffModal = () => {
+    setEditingStaff(null);
+    setStaffFormName('');
+    setStaffFormPhone('');
+    setStaffFormEmail('');
+    setStaffFormRole('Stylist');
+    setStaffFormPin('1234');
+    setStaffFormActive(true);
+    setShowStaffModal(true);
   };
 
-  const handleAddService = (e: React.FormEvent) => {
+  const openEditStaffModal = (st: StaffMember) => {
+    setEditingStaff(st);
+    setStaffFormName(st.name);
+    setStaffFormPhone(st.phone || '');
+    setStaffFormEmail(st.email || '');
+    setStaffFormRole(st.role.toLowerCase().includes('admin') || st.role.toLowerCase().includes('founder') ? 'Admin' : 'Stylist');
+    setStaffFormPin(st.pin || '1234');
+    setStaffFormActive(st.available !== false);
+    setShowStaffModal(true);
+  };
+
+  const handleSaveStaff = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isAdmin) {
-      alert('Only Admin (Didula) can add services.');
+    if (!staffFormName.trim()) {
+      alert('Please enter staff full name.');
       return;
     }
 
-    if (!newServiceName.trim()) return;
+    const firstName = staffFormName.trim().split(' ')[0];
+    const initial = firstName.charAt(0).toUpperCase();
 
-    const newSrv: SalonService = {
-      id: `srv-${Date.now().toString(36)}`,
-      name: newServiceName.trim(),
-      category: newServiceCategory,
-      price: Number(newServicePrice) || 1500,
-      durationMinutes: Number(newServiceDuration) || 30,
-      description: newServiceDescription.trim() || 'Custom salon service package.',
-      popular: false
+    const staffMemberToSave: StaffMember = {
+      id: editingStaff ? editingStaff.id : `staff-${Date.now().toString(36)}`,
+      name: staffFormName.trim(),
+      role: staffFormRole === 'Admin' ? 'Admin' : 'Stylist',
+      specialty: editingStaff ? editingStaff.specialty : 'Hair & Beard Styling',
+      rating: editingStaff ? editingStaff.rating : 5.0,
+      reviewsCount: editingStaff ? editingStaff.reviewsCount : 1,
+      avatar: editingStaff ? editingStaff.avatar : '',
+      email: staffFormEmail.trim() || `${firstName.toLowerCase()}@saloonaquiness.lk`,
+      phone: staffFormPhone.trim(),
+      pin: staffFormPin.trim() || '1234',
+      available: staffFormActive,
+      workingDays: editingStaff ? editingStaff.workingDays : [1, 2, 3, 4, 5, 6],
+      servicesOffered: editingStaff ? editingStaff.servicesOffered : ['all']
     };
 
-    StorageService.addOrUpdateService(newSrv);
-    onServicesUpdated();
-    setShowAddServiceModal(false);
-    setNewServiceName('');
-    setNewServiceDescription('');
+    StorageService.addOrUpdateStaff(staffMemberToSave);
+    onStaffUpdated();
+    setShowStaffModal(false);
   };
 
-  const handleDeleteService = (id: string) => {
-    if (!isAdmin) {
-      alert('Only Admin (Didula) can delete services.');
+  const handleDeleteStaff = (id: string) => {
+    if (id === 'staff-1' || editingStaff?.name.toLowerCase().includes('didula')) {
+      alert('Cannot delete the salon owner account.');
+      return;
+    }
+    if (window.confirm('Remove this staff member from the salon?')) {
+      StorageService.deleteStaff(id);
+      onStaffUpdated();
+      setShowStaffModal(false);
+    }
+  };
+
+  // Service Form State
+  const [serviceFormName, setServiceFormName] = useState('');
+  const [serviceFormPrice, setServiceFormPrice] = useState('2000');
+  const [serviceFormDuration, setServiceFormDuration] = useState('45');
+  const [serviceFormDescription, setServiceFormDescription] = useState('');
+  const [serviceFormActive, setServiceFormActive] = useState(true);
+
+  const openNewServiceModal = () => {
+    setEditingService(null);
+    setServiceFormName('');
+    setServiceFormPrice('2000');
+    setServiceFormDuration('45');
+    setServiceFormDescription('');
+    setServiceFormActive(true);
+    setShowServiceModal(true);
+  };
+
+  const openEditServiceModal = (srv: SalonService) => {
+    setEditingService(srv);
+    setServiceFormName(srv.name);
+    setServiceFormPrice(String(srv.price));
+    setServiceFormDuration(String(srv.durationMinutes));
+    setServiceFormDescription(srv.description || '');
+    setServiceFormActive(srv.active !== false);
+    setShowServiceModal(true);
+  };
+
+  const handleSaveService = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!serviceFormName.trim()) {
+      alert('Please enter service name.');
       return;
     }
 
+    const serviceToSave: SalonService = {
+      id: editingService ? editingService.id : `srv-${Date.now().toString(36)}`,
+      name: serviceFormName.trim(),
+      category: editingService ? editingService.category : 'Hair',
+      price: Number(serviceFormPrice) || 1500,
+      durationMinutes: Number(serviceFormDuration) || 30,
+      description: serviceFormDescription.trim(),
+      popular: editingService ? editingService.popular : false,
+      active: serviceFormActive,
+      offeredBy: ['all']
+    };
+
+    StorageService.addOrUpdateService(serviceToSave);
+    onServicesUpdated();
+    setShowServiceModal(false);
+  };
+
+  const handleToggleServiceActive = (srvId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    StorageService.toggleServiceActive(srvId);
+    onServicesUpdated();
+  };
+
+  const handleDeleteService = (srvId: string) => {
     if (window.confirm('Delete this service from the salon catalog?')) {
-      StorageService.deleteService(id);
+      StorageService.deleteService(srvId);
       onServicesUpdated();
+      setShowServiceModal(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col">
+    <div className="min-h-screen bg-[#f0f2f6] text-zinc-900 select-none font-sans flex flex-col justify-between">
       
-      {/* NATIVE APP TOP BAR (Sticky, Minimal) */}
-      <header className="sticky top-0 z-40 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800/80 px-4 sm:px-6 h-16 flex items-center justify-between">
-        
-        {/* Left: User Profile & Title */}
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            {currentUser.avatar ? (
-              <img 
-                src={currentUser.avatar} 
-                alt={currentUser.name} 
-                className="w-9 h-9 rounded-full object-cover ring-2 ring-amber-500/50"
-              />
-            ) : (
-              <div className="w-9 h-9 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-sm ring-1 ring-amber-500/40">
-                {currentUser.name.charAt(0)}
-              </div>
-            )}
-            {isAdmin && (
-              <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-zinc-950 flex items-center justify-center text-[9px] font-bold shadow">
-                <Crown className="w-2.5 h-2.5" />
-              </div>
-            )}
-          </div>
+      {/* Centered App Container */}
+      <div className="w-full max-w-md mx-auto min-h-screen flex flex-col pb-24 px-4 pt-3">
 
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-bold text-white text-sm sm:text-base leading-none">
-                {currentUser.name.split(' ')[0]}
-              </span>
-              {isAdmin ? (
-                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40">
-                  Admin
+        {/* ----------------- TAB 1: QUEUE ----------------- */}
+        {activeTab === 'queue' && (
+          <div className="flex flex-col w-full animate-fadeIn">
+            
+            {/* Top Bar: Title, Date, Avatar */}
+            <div className="flex items-center justify-between pt-2 pb-1">
+              <div>
+                <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900 leading-tight">
+                  Queue
+                </h1>
+                <p className="text-sm font-medium text-zinc-500 mt-0.5">
+                  {formattedToday}
+                </p>
+              </div>
+
+              {/* User Avatar Circle */}
+              <button
+                type="button"
+                onClick={() => setShowProfileMenu(true)}
+                className="w-11 h-11 rounded-full bg-[#0d6efd] text-white font-extrabold text-lg flex items-center justify-center shadow-md active:scale-95 transition-transform"
+                title={`${currentUser.name} (${currentUser.role})`}
+              >
+                {currentUser.name.charAt(0).toUpperCase()}
+              </button>
+            </div>
+
+            {/* Metrics Card */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-200/60 mt-3.5">
+              <div className="grid grid-cols-3 text-center">
+                <div>
+                  <span className="block text-2xl font-black text-amber-600 leading-none">
+                    {stats.pendingCount}
+                  </span>
+                  <span className="text-xs font-semibold text-zinc-500 mt-1 block">
+                    Pending
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-2xl font-black text-purple-600 leading-none">
+                    {stats.inChairCount}
+                  </span>
+                  <span className="text-xs font-semibold text-zinc-500 mt-1 block">
+                    In chair
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-2xl font-black text-[#0d6efd] leading-none">
+                    {stats.bookedTodayCount}
+                  </span>
+                  <span className="text-xs font-semibold text-zinc-500 mt-1 block">
+                    Booked today
+                  </span>
+                </div>
+              </div>
+
+              {/* Hairline divider */}
+              <div className="border-t border-zinc-100 my-3" />
+
+              {/* Revenue Row */}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-zinc-600 font-medium">
+                  Revenue today <strong className="text-zinc-900 font-bold ml-1">Rs. {stats.todayRevenue.toLocaleString()}</strong>
                 </span>
-              ) : (
-                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/40">
-                  Stylist
-                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('settings');
+                    setSettingsSubView('analytics');
+                  }}
+                  className="text-[#0d6efd] font-bold hover:underline flex items-center text-sm"
+                >
+                  Analytics ›
+                </button>
+              </div>
+            </div>
+
+            {/* Segmented Control Pill: All staff vs My queue */}
+            <div className="w-full bg-[#e2e5eb] p-1 rounded-xl flex items-center mt-3.5">
+              <button
+                type="button"
+                onClick={() => setQueueScope('all')}
+                className={`flex-1 py-1.5 rounded-lg text-sm font-bold text-center transition-all ${
+                  queueScope === 'all'
+                    ? 'bg-white text-zinc-900 shadow-sm'
+                    : 'text-zinc-600 hover:text-zinc-900 font-medium'
+                }`}
+              >
+                All staff
+              </button>
+              <button
+                type="button"
+                onClick={() => setQueueScope('mine')}
+                className={`flex-1 py-1.5 rounded-lg text-sm font-bold text-center transition-all ${
+                  queueScope === 'mine'
+                    ? 'bg-white text-zinc-900 shadow-sm'
+                    : 'text-zinc-600 hover:text-zinc-900 font-medium'
+                }`}
+              >
+                My queue
+              </button>
+            </div>
+
+            {/* Search Input Pill */}
+            <div className="relative mt-3">
+              <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search client, phone, service"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-[#e5e9f0]/70 rounded-xl text-sm placeholder-zinc-500 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#0d6efd] transition-all"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               )}
             </div>
-            <span className="text-[11px] text-zinc-400 capitalize">
-              {activeTab === 'appointments' ? 'Queue & Schedule' : activeTab === 'reports' ? 'Reports & Analytics' : activeTab === 'services' ? 'Services' : 'Staff Roster'}
-            </span>
+
+            {/* Appointment Cards List */}
+            <div className="space-y-3 mt-3.5">
+              {filteredQueueAppointments.length === 0 ? (
+                <div className="bg-white rounded-2xl p-8 text-center text-zinc-400 border border-zinc-200/60 shadow-sm mt-2">
+                  <Sparkles className="w-8 h-8 mx-auto text-zinc-300 mb-2" />
+                  <p className="font-semibold text-zinc-700">No appointments in this queue</p>
+                  <p className="text-xs text-zinc-400 mt-1">New client bookings will arrive here automatically.</p>
+                </div>
+              ) : (
+                filteredQueueAppointments.map(apt => {
+                  const isPending = apt.status === 'pending';
+                  const isInChair = apt.status === 'in_progress';
+                  const isConfirmed = apt.status === 'confirmed';
+                  const isCompleted = apt.status === 'completed';
+
+                  return (
+                    <div 
+                      key={apt.id}
+                      className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-200/60 transition-all hover:shadow-md"
+                    >
+                      {/* Card Header: Client Name & Status Badge */}
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="font-bold text-base text-zinc-900 leading-snug">
+                          {apt.customerName}
+                        </h3>
+
+                        {/* Status Badge */}
+                        {isPending && (
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#fff3cd] text-[#b7791f] whitespace-nowrap">
+                            Pending
+                          </span>
+                        )}
+                        {isInChair && (
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#efe8fa] text-[#7048e8] whitespace-nowrap">
+                            In chair
+                          </span>
+                        )}
+                        {isConfirmed && (
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#dbeafe] text-[#1e40af] whitespace-nowrap">
+                            Confirmed
+                          </span>
+                        )}
+                        {isCompleted && (
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#d1fae5] text-[#065f46] whitespace-nowrap">
+                            Completed
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Service & Price */}
+                      <div className="flex items-center justify-between mt-1 text-sm">
+                        <span className="text-zinc-600 font-medium truncate max-w-[220px]">
+                          {apt.serviceName}
+                        </span>
+                        <span className="font-bold text-zinc-900 ml-2">
+                          Rs. {apt.servicePrice.toLocaleString()}
+                        </span>
+                      </div>
+
+                      {/* Time & Stylist */}
+                      <p className="text-xs text-zinc-500 font-medium mt-0.5">
+                        {apt.timeSlot} · {apt.staffName.split(' ')[0]}
+                      </p>
+
+                      {/* Client Note (if any) */}
+                      {apt.notes && (
+                        <p className="text-xs italic text-zinc-500 mt-1.5 leading-relaxed bg-zinc-50 p-2 rounded-lg border border-zinc-100">
+                          “{apt.notes}”
+                        </p>
+                      )}
+
+                      {/* Actions Row */}
+                      <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-zinc-100/90">
+                        {/* Status Change Buttons */}
+                        {isPending && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateStatus(apt.id, 'confirmed')}
+                              className="bg-[#0d6efd] hover:bg-[#0b5ed7] text-white font-bold text-sm px-5 py-2 rounded-full shadow-sm active:scale-95 transition-all"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateStatus(apt.id, 'cancelled')}
+                              className="text-red-600 hover:text-red-700 font-bold text-sm px-3 hover:underline"
+                            >
+                              Decline
+                            </button>
+                          </>
+                        )}
+
+                        {isInChair && (
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateStatus(apt.id, 'completed')}
+                            className="bg-[#198754] hover:bg-[#157347] text-white font-bold text-sm px-5 py-2 rounded-full shadow-sm active:scale-95 transition-all"
+                          >
+                            Complete
+                          </button>
+                        )}
+
+                        {isConfirmed && (
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateStatus(apt.id, 'in_progress')}
+                            className="bg-[#198754] hover:bg-[#157347] text-white font-bold text-sm px-5 py-2 rounded-full shadow-sm active:scale-95 transition-all"
+                          >
+                            Start
+                          </button>
+                        )}
+
+                        {isCompleted && (
+                          <span className="text-xs font-bold text-emerald-600 flex items-center gap-1 py-1 px-2">
+                            <Check className="w-4 h-4 stroke-[2.5]" /> Done
+                          </span>
+                        )}
+
+                        {/* Right Utility Icons: Call & More */}
+                        <div className="flex items-center gap-1.5 ml-auto">
+                          <a
+                            href={`tel:${apt.customerPhone}`}
+                            className="w-9 h-9 rounded-full bg-blue-50 text-[#0d6efd] flex items-center justify-center hover:bg-blue-100 active:scale-95 transition-all"
+                            title={`Call ${apt.customerName}`}
+                          >
+                            <Phone className="w-4 h-4" />
+                          </a>
+
+                          <button
+                            type="button"
+                            onClick={() => setActionAppointment(apt)}
+                            className="w-9 h-9 rounded-full bg-zinc-100 text-zinc-600 flex items-center justify-center hover:bg-zinc-200 active:scale-95 transition-all"
+                            title="More options"
+                          >
+                            <MoreHorizontal className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
           </div>
-        </div>
+        )}
 
-        {/* Right: Quick Context Actions & Hamburger Menu Button */}
-        <div className="flex items-center gap-2">
-          {activeTab === 'services' && isAdmin && (
-            <button
-              onClick={() => setShowAddServiceModal(true)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs shadow-md shadow-amber-500/20 hover:bg-amber-400 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Service</span>
-            </button>
-          )}
+        {/* ----------------- TAB 2: CALENDAR ----------------- */}
+        {activeTab === 'calendar' && (
+          <div className="flex flex-col w-full animate-fadeIn pt-2">
+            <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900">
+              Calendar
+            </h1>
+            <p className="text-sm font-medium text-zinc-500 mt-0.5">
+              Day schedule & time slots
+            </p>
 
-          {activeTab !== 'appointments' && (
-            <button
-              onClick={() => setActiveTab('appointments')}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 hover:text-white transition-colors"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Queue</span>
-            </button>
-          )}
+            {/* Date Pill Selector */}
+            <div className="flex items-center gap-2 overflow-x-auto py-3 no-scrollbar">
+              {[-1, 0, 1, 2, 3, 4, 5].map(offset => {
+                const target = new Date();
+                target.setDate(target.getDate() + offset);
+                const targetIso = target.toISOString().split('T')[0];
+                const isSelected = selectedCalendarDate === targetIso;
+                const isToday = offset === 0;
 
-          {/* HAMBURGER MENU BUTTON */}
-          <button
-            onClick={() => setIsMenuOpen(true)}
-            className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:border-amber-500/40 transition-colors active:scale-95"
-            aria-label="Open Navigation Menu"
-            title="Menu"
-          >
-            <Menu className="w-5 h-5 text-amber-400" />
-          </button>
-        </div>
-      </header>
+                const dayName = target.toLocaleDateString('en-GB', { weekday: 'short' });
+                const dayNum = target.getDate();
 
-      {/* SLIDE-OUT HAMBURGER MENU DRAWER */}
-      {isMenuOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end animate-fade-in">
-          {/* Backdrop */}
-          <div 
-            onClick={() => setIsMenuOpen(false)}
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
-          />
+                return (
+                  <button
+                    key={offset}
+                    type="button"
+                    onClick={() => setSelectedCalendarDate(targetIso)}
+                    className={`flex flex-col items-center justify-center min-w-[54px] py-2 px-1.5 rounded-2xl transition-all ${
+                      isSelected
+                        ? 'bg-[#0d6efd] text-white shadow-md font-bold'
+                        : 'bg-white text-zinc-700 border border-zinc-200/60 hover:border-zinc-300'
+                    }`}
+                  >
+                    <span className="text-[11px] uppercase tracking-wider">{dayName}</span>
+                    <span className="text-lg font-bold">{dayNum}</span>
+                    {isToday && (
+                      <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${isSelected ? 'bg-white' : 'bg-[#0d6efd]'}`} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
 
-          {/* Drawer Content */}
-          <div className="relative w-72 sm:w-80 bg-zinc-900 border-l border-zinc-800 h-full p-6 flex flex-col justify-between shadow-2xl z-10 animate-slide-left">
+            {/* Appointments for Selected Date */}
+            <div className="space-y-3 mt-2">
+              {appointments.filter(a => a.date === selectedCalendarDate && a.status !== 'cancelled').length === 0 ? (
+                <div className="bg-white rounded-2xl p-8 text-center text-zinc-400 border border-zinc-200/60 shadow-sm mt-3">
+                  <CalendarDays className="w-8 h-8 mx-auto text-zinc-300 mb-2" />
+                  <p className="font-semibold text-zinc-700">No appointments scheduled</p>
+                  <p className="text-xs text-zinc-400 mt-1">This date has no bookings recorded.</p>
+                </div>
+              ) : (
+                appointments
+                  .filter(a => a.date === selectedCalendarDate && a.status !== 'cancelled')
+                  .sort((a, b) => a.timeSlot.localeCompare(b.timeSlot))
+                  .map(apt => (
+                    <div 
+                      key={apt.id}
+                      className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-200/60 flex items-center justify-between gap-3"
+                    >
+                      <div className="min-w-[70px]">
+                        <span className="text-sm font-bold text-[#0d6efd] block leading-tight">
+                          {apt.timeSlot}
+                        </span>
+                        <span className="text-xs text-zinc-400 font-medium">
+                          {apt.serviceDuration}m
+                        </span>
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-sm text-zinc-900 truncate">
+                          {apt.customerName}
+                        </h4>
+                        <p className="text-xs text-zinc-500 truncate">
+                          {apt.serviceName} · {apt.staffName.split(' ')[0]}
+                        </p>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 capitalize">
+                          {apt.status.replace('_', ' ')}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+              )}
+            </div>
+
+          </div>
+        )}
+
+        {/* ----------------- TAB 3: CLIENTS ----------------- */}
+        {activeTab === 'clients' && (
+          <div className="flex flex-col w-full animate-fadeIn pt-2">
+            <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900">
+              Clients
+            </h1>
+            <p className="text-sm font-medium text-zinc-500 mt-0.5">
+              Client directory & booking history
+            </p>
+
+            <div className="space-y-3 mt-4">
+              {clientsList.length === 0 ? (
+                <div className="bg-white rounded-2xl p-8 text-center text-zinc-400 border border-zinc-200/60 shadow-sm mt-3">
+                  <Users className="w-8 h-8 mx-auto text-zinc-300 mb-2" />
+                  <p className="font-semibold text-zinc-700">No client records found</p>
+                  <p className="text-xs text-zinc-400 mt-1">Clients will appear once bookings are placed.</p>
+                </div>
+              ) : (
+                clientsList.map((client, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-200/60 flex items-center justify-between gap-3"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-zinc-100 text-zinc-700 font-bold flex items-center justify-center shrink-0">
+                      {client.name.charAt(0)}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-sm text-zinc-900 truncate">
+                        {client.name}
+                      </h4>
+                      <p className="text-xs text-zinc-500">
+                        {client.phone}
+                      </p>
+                      <p className="text-[11px] text-zinc-400 mt-0.5 truncate">
+                        {client.totalVisits} visit{client.totalVisits > 1 ? 's' : ''} · Spent Rs. {client.totalSpend.toLocaleString()}
+                      </p>
+                    </div>
+
+                    <a
+                      href={`tel:${client.phone}`}
+                      className="w-9 h-9 rounded-full bg-blue-50 text-[#0d6efd] flex items-center justify-center hover:bg-blue-100 transition-colors shrink-0"
+                      title={`Call ${client.name}`}
+                    >
+                      <Phone className="w-4 h-4" />
+                    </a>
+                  </div>
+                ))
+              )}
+            </div>
+
+          </div>
+        )}
+
+        {/* ----------------- TAB 4: SETTINGS ----------------- */}
+        {activeTab === 'settings' && (
+          <div className="flex flex-col w-full animate-fadeIn pt-2">
             
-            <div className="space-y-6">
-              {/* Drawer Top / Header */}
-              <div className="flex items-center justify-between pb-4 border-b border-zinc-800">
-                <div className="flex items-center gap-2.5">
-                  <img 
-                    src="/logo.png" 
-                    alt="Saloon Aquiness" 
-                    className="w-9 h-9 rounded-full object-cover ring-2 ring-amber-500/40" 
-                  />
-                  <div>
-                    <span className="font-serif font-bold text-white text-base tracking-wide block">
-                      AQUINESS BARBER
-                    </span>
-                    <span className="text-[10px] text-amber-400 uppercase font-semibold">Staff App</span>
+            {/* SUBVIEW 1: SETTINGS ROOT */}
+            {settingsSubView === 'root' && (
+              <>
+                <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900">
+                  Settings
+                </h1>
+                <p className="text-sm font-medium text-zinc-500 mt-0.5">
+                  Salon preferences & portal configuration
+                </p>
+
+                {/* Profile Card */}
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-200/60 mt-4 flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-[#0d6efd] text-white font-extrabold text-xl flex items-center justify-center shadow-sm shrink-0">
+                    {currentUser.name.charAt(0)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-base text-zinc-900 truncate">
+                        {currentUser.name}
+                      </h3>
+                      {isAdmin && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                          Owner
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-zinc-500 truncate">
+                      {currentUser.title || (isAdmin ? 'Admin' : 'Stylist')} · {currentUser.email}
+                    </p>
                   </div>
                 </div>
 
+                {/* Group 1: SALON MANAGEMENT */}
+                <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase mt-6 mb-2 block px-1">
+                  SALON MANAGEMENT
+                </span>
+                <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
+                  
+                  {/* Staff Row */}
+                  <button
+                    type="button"
+                    onClick={() => setSettingsSubView('staff')}
+                    className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Users className="w-5 h-5 text-[#0d6efd]" />
+                      <div>
+                        <span className="font-bold text-sm text-zinc-900 block">Staff</span>
+                        <span className="text-xs text-zinc-500">{staff.length} staff members</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-zinc-400" />
+                  </button>
+
+                  {/* Services Row */}
+                  <button
+                    type="button"
+                    onClick={() => setSettingsSubView('services')}
+                    className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Scissors className="w-5 h-5 text-[#0d6efd]" />
+                      <div>
+                        <span className="font-bold text-sm text-zinc-900 block">Services</span>
+                        <span className="text-xs text-zinc-500">{services.length} catalog items</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-zinc-400" />
+                  </button>
+
+                  {/* Analytics Row */}
+                  <button
+                    type="button"
+                    onClick={() => setSettingsSubView('analytics')}
+                    className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <BarChart3 className="w-5 h-5 text-[#0d6efd]" />
+                      <div>
+                        <span className="font-bold text-sm text-zinc-900 block">Analytics & Performance</span>
+                        <span className="text-xs text-zinc-500">Revenue, tickets & trends</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-zinc-400" />
+                  </button>
+
+                </div>
+
+                {/* Group 2: PORTAL ACCESS */}
+                <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase mt-6 mb-2 block px-1">
+                  PORTAL ACCESS
+                </span>
+                <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
+                  
+                  {/* Exit to Client Booking Website */}
+                  {onExitToClientWebsite && (
+                    <button
+                      type="button"
+                      onClick={onExitToClientWebsite}
+                      className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Globe className="w-5 h-5 text-[#0d6efd]" />
+                        <span className="font-bold text-sm text-zinc-900">Client Booking Website</span>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-zinc-400" />
+                    </button>
+                  )}
+
+                  {/* Lock Portal */}
+                  {onLockPortal && (
+                    <button
+                      type="button"
+                      onClick={onLockPortal}
+                      className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Lock className="w-5 h-5 text-zinc-600" />
+                        <span className="font-bold text-sm text-zinc-900">Lock Portal (Require PIN)</span>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-zinc-400" />
+                    </button>
+                  )}
+
+                  {/* Log Out */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('Log out of staff portal?')) {
+                        localStorage.removeItem('aquiness_staff_auth');
+                        if (onLockPortal) onLockPortal();
+                      }
+                    }}
+                    className="w-full p-4 flex items-center gap-3 text-left hover:bg-red-50/50 transition-colors text-red-600"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    <span className="font-bold text-sm">Sign Out</span>
+                  </button>
+
+                </div>
+              </>
+            )}
+
+            {/* SUBVIEW 2: STAFF LIST (Mockup: media_1792221587301_8aaa0f40.png) */}
+            {settingsSubView === 'staff' && (
+              <div className="flex flex-col w-full animate-fadeIn">
+                
+                {/* Back to Settings link */}
                 <button
-                  onClick={() => setIsMenuOpen(false)}
-                  className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                  type="button"
+                  onClick={() => setSettingsSubView('root')}
+                  className="flex items-center gap-1 text-[#0d6efd] font-semibold text-sm hover:underline mb-1"
                 >
-                  <X className="w-5 h-5" />
+                  <ChevronLeft className="w-5 h-5 -ml-1 stroke-[2.2]" />
+                  Settings
                 </button>
+
+                {/* Header with + Add */}
+                <div className="flex items-center justify-between mt-1 mb-3">
+                  <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900">
+                    Staff
+                  </h1>
+                  <button
+                    type="button"
+                    onClick={openNewStaffModal}
+                    className="text-[#0d6efd] font-bold text-base hover:underline flex items-center gap-0.5"
+                  >
+                    + Add
+                  </button>
+                </div>
+
+                {/* Grouped Staff Card */}
+                <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
+                  {staff.map(member => {
+                    const isOwner = member.id === 'staff-1' || member.name.toLowerCase().includes('didula');
+                    const initial = member.name.charAt(0).toUpperCase();
+
+                    return (
+                      <div
+                        key={member.id}
+                        onClick={() => openEditStaffModal(member)}
+                        className="w-full p-3.5 flex items-center justify-between hover:bg-zinc-50/80 cursor-pointer transition-colors"
+                      >
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          {/* Round Avatar Circle */}
+                          <div className="w-11 h-11 rounded-full bg-[#dbeafe] text-[#0d6efd] font-extrabold text-lg flex items-center justify-center shrink-0">
+                            {initial}
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-base text-zinc-900 truncate">
+                                {member.name}
+                              </h4>
+                              {isOwner && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#fef3c7] text-[#92400e]">
+                                  Owner
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs text-zinc-500 font-medium block">
+                              {isOwner ? 'Admin' : (member.role || 'Stylist')}
+                            </span>
+                          </div>
+                        </div>
+
+                        <ChevronRight className="w-5 h-5 text-zinc-400 shrink-0 ml-2" />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Footer instructions */}
+                <p className="text-xs text-zinc-500 font-medium px-2 mt-3 leading-relaxed">
+                  Tap a person to change their role or PIN, or to deactivate them.
+                </p>
+
+              </div>
+            )}
+
+            {/* SUBVIEW 3: SERVICES LIST (Mockup: media_1792221587304_f638ca86.png) */}
+            {settingsSubView === 'services' && (
+              <div className="flex flex-col w-full animate-fadeIn">
+                
+                {/* Back to Settings link */}
+                <button
+                  type="button"
+                  onClick={() => setSettingsSubView('root')}
+                  className="flex items-center gap-1 text-[#0d6efd] font-semibold text-sm hover:underline mb-1"
+                >
+                  <ChevronLeft className="w-5 h-5 -ml-1 stroke-[2.2]" />
+                  Settings
+                </button>
+
+                {/* Header with + Add */}
+                <div className="flex items-center justify-between mt-1 mb-3">
+                  <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900">
+                    Services
+                  </h1>
+                  <button
+                    type="button"
+                    onClick={openNewServiceModal}
+                    className="text-[#0d6efd] font-bold text-base hover:underline flex items-center gap-0.5"
+                  >
+                    + Add
+                  </button>
+                </div>
+
+                {/* Grouped Services Card */}
+                <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
+                  {services.map(srv => {
+                    const isServiceActive = srv.active !== false;
+
+                    return (
+                      <div
+                        key={srv.id}
+                        onClick={() => openEditServiceModal(srv)}
+                        className="w-full p-4 flex items-center justify-between gap-3 hover:bg-zinc-50/80 cursor-pointer transition-colors"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-bold text-base text-zinc-900 leading-snug truncate">
+                            {srv.name}
+                          </h4>
+                          <p className="text-xs text-zinc-500 font-medium mt-0.5">
+                            {srv.durationMinutes} min · Rs. {srv.price.toLocaleString()}
+                          </p>
+                        </div>
+
+                        {/* iOS Toggle Switch */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleToggleServiceActive(srv.id, e)}
+                          className={`relative w-12 h-7 rounded-full transition-colors shrink-0 ${
+                            isServiceActive ? 'bg-[#198754]' : 'bg-zinc-300'
+                          }`}
+                        >
+                          <span 
+                            className={`block w-6 h-6 rounded-full bg-white shadow-md transform transition-transform ${
+                              isServiceActive ? 'translate-x-[22px]' : 'translate-x-0.5'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Footer instructions */}
+                <p className="text-xs text-zinc-500 font-medium px-2 mt-3 leading-relaxed">
+                  Switch a service off to hide it from client booking. Only the owner can add or edit services.
+                </p>
+
+              </div>
+            )}
+
+            {/* SUBVIEW 4: ANALYTICS */}
+            {settingsSubView === 'analytics' && (
+              <div className="flex flex-col w-full animate-fadeIn">
+                <button
+                  type="button"
+                  onClick={() => setSettingsSubView('root')}
+                  className="flex items-center gap-1 text-[#0d6efd] font-semibold text-sm hover:underline mb-1"
+                >
+                  <ChevronLeft className="w-5 h-5 -ml-1 stroke-[2.2]" />
+                  Settings
+                </button>
+
+                <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900 mt-1 mb-3">
+                  Analytics
+                </h1>
+
+                {/* Overview Cards */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-zinc-200/60">
+                    <span className="text-xs font-semibold text-zinc-500 block">All-time Revenue</span>
+                    <span className="text-xl font-black text-zinc-900 mt-1 block">
+                      Rs. {appointments.filter(a => a.status === 'completed' || a.status === 'confirmed').reduce((sum, a) => sum + a.servicePrice, 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-zinc-200/60">
+                    <span className="text-xs font-semibold text-zinc-500 block">Total Appointments</span>
+                    <span className="text-xl font-black text-zinc-900 mt-1 block">
+                      {appointments.length}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Stylist Breakdown */}
+                <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase mt-5 mb-2 block px-1">
+                  STYLIST BREAKDOWN
+                </span>
+                <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
+                  {staff.map(st => {
+                    const staffApts = appointments.filter(a => 
+                      a.staffId === st.id || a.staffName.toLowerCase().includes(st.name.toLowerCase())
+                    );
+                    const staffRev = staffApts
+                      .filter(a => a.status === 'completed' || a.status === 'confirmed')
+                      .reduce((sum, a) => sum + a.servicePrice, 0);
+
+                    return (
+                      <div key={st.id} className="p-3.5 flex items-center justify-between">
+                        <div>
+                          <h5 className="font-bold text-sm text-zinc-900">{st.name}</h5>
+                          <span className="text-xs text-zinc-500">{staffApts.length} bookings</span>
+                        </div>
+                        <span className="font-bold text-sm text-zinc-900">
+                          Rs. {staffRev.toLocaleString()}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+              </div>
+            )}
+
+          </div>
+        )}
+
+      </div>
+
+      {/* ----------------- FIXED BOTTOM NAVIGATION BAR ----------------- */}
+      <nav 
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)' }}
+        className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-zinc-200/80"
+      >
+        <div className="w-full max-w-md mx-auto grid grid-cols-4 py-2 px-2 text-center select-none">
+          
+          {/* 1. Queue */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('queue')}
+            className={`flex flex-col items-center justify-center py-1 rounded-xl transition-colors ${
+              activeTab === 'queue' ? 'text-[#0d6efd]' : 'text-zinc-600 hover:text-zinc-800'
+            }`}
+          >
+            <ListOrdered className="w-5 h-5 stroke-[2.2]" />
+            <span className={`text-[11px] mt-1 ${activeTab === 'queue' ? 'font-bold' : 'font-medium'}`}>
+              Queue
+            </span>
+          </button>
+
+          {/* 2. Calendar */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('calendar')}
+            className={`flex flex-col items-center justify-center py-1 rounded-xl transition-colors ${
+              activeTab === 'calendar' ? 'text-[#0d6efd]' : 'text-zinc-600 hover:text-zinc-800'
+            }`}
+          >
+            <CalendarIcon className="w-5 h-5 stroke-[2.2]" />
+            <span className={`text-[11px] mt-1 ${activeTab === 'calendar' ? 'font-bold' : 'font-medium'}`}>
+              Calendar
+            </span>
+          </button>
+
+          {/* 3. Clients */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('clients')}
+            className={`flex flex-col items-center justify-center py-1 rounded-xl transition-colors ${
+              activeTab === 'clients' ? 'text-[#0d6efd]' : 'text-zinc-600 hover:text-zinc-800'
+            }`}
+          >
+            <Users className="w-5 h-5 stroke-[2.2]" />
+            <span className={`text-[11px] mt-1 ${activeTab === 'clients' ? 'font-bold' : 'font-medium'}`}>
+              Clients
+            </span>
+          </button>
+
+          {/* 4. Settings */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('settings');
+              setSettingsSubView('root');
+            }}
+            className={`flex flex-col items-center justify-center py-1 rounded-xl transition-colors ${
+              activeTab === 'settings' ? 'text-[#0d6efd]' : 'text-zinc-600 hover:text-zinc-800'
+            }`}
+          >
+            <SlidersHorizontal className="w-5 h-5 stroke-[2.2]" />
+            <span className={`text-[11px] mt-1 ${activeTab === 'settings' ? 'font-bold' : 'font-medium'}`}>
+              Settings
+            </span>
+          </button>
+
+        </div>
+      </nav>
+
+      {/* ----------------- MODAL: NEW / EDIT STAFF MEMBER (Mockup: media_1792221587301_a0475a0f.png) ----------------- */}
+      {showStaffModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
+          <div className="bg-[#f0f2f6] w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-4 py-3.5 bg-white border-b border-zinc-200/80 sticky top-0 z-10">
+              <button
+                type="button"
+                onClick={() => setShowStaffModal(false)}
+                className="text-[#0d6efd] font-semibold text-base hover:underline"
+              >
+                Cancel
+              </button>
+              <h3 className="font-bold text-base text-zinc-900">
+                {editingStaff ? 'Edit staff member' : 'New staff member'}
+              </h3>
+              <button
+                type="button"
+                onClick={handleSaveStaff}
+                className="text-[#0d6efd] font-bold text-base hover:underline"
+              >
+                Save
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveStaff} className="p-4 space-y-5">
+              
+              {/* Photo Area */}
+              <div className="flex flex-col items-center justify-center py-2">
+                <div className="w-20 h-20 rounded-full bg-[#dbeafe] text-[#0d6efd] flex flex-col items-center justify-center font-bold shadow-inner">
+                  <Plus className="w-8 h-8 stroke-[2.5]" />
+                </div>
+                <span className="text-xs font-bold text-[#0d6efd] mt-2 cursor-pointer hover:underline">
+                  Add photo
+                </span>
               </div>
 
-              {/* Current User Chip */}
-              <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 flex items-center gap-3">
-                <img 
-                  src={currentUser.avatar} 
-                  alt={currentUser.name} 
-                  className="w-10 h-10 rounded-full object-cover ring-1 ring-amber-500/50 shrink-0" 
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-white truncate">{currentUser.name}</p>
-                  <p className="text-[11px] text-amber-400 flex items-center gap-1">
-                    {isAdmin ? <Crown className="w-3 h-3" /> : <Scissors className="w-3 h-3" />}
-                    <span>{isAdmin ? 'Salon Owner / Admin' : 'Stylist'}</span>
-                  </p>
+              {/* DETAILS GROUP */}
+              <div>
+                <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase block px-1 mb-1.5">
+                  DETAILS
+                </span>
+                <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
+                  
+                  <div className="p-3.5 flex items-center justify-between">
+                    <label className="text-sm font-bold text-zinc-900 w-28">Full name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Required"
+                      value={staffFormName}
+                      onChange={e => setStaffFormName(e.target.value)}
+                      className="flex-1 text-right text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="p-3.5 flex items-center justify-between">
+                    <label className="text-sm font-bold text-zinc-900 w-28">Phone</label>
+                    <input
+                      type="tel"
+                      placeholder="07x xxx xxxx"
+                      value={staffFormPhone}
+                      onChange={e => setStaffFormPhone(e.target.value)}
+                      className="flex-1 text-right text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="p-3.5 flex items-center justify-between">
+                    <label className="text-sm font-bold text-zinc-900 w-28">Email</label>
+                    <input
+                      type="email"
+                      placeholder="For email sign-in"
+                      value={staffFormEmail}
+                      onChange={e => setStaffFormEmail(e.target.value)}
+                      className="flex-1 text-right text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none"
+                    />
+                  </div>
+
                 </div>
               </div>
 
-              {/* Menu Navigation Links */}
-              <nav className="space-y-1.5 text-xs font-semibold">
-                <button
-                  onClick={() => {
-                    setActiveTab('appointments');
-                    setIsMenuOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all ${
-                    activeTab === 'appointments'
-                      ? 'bg-amber-500 text-zinc-950 shadow-md font-bold'
-                      : 'text-zinc-300 hover:text-white hover:bg-zinc-800/80'
-                  }`}
-                >
-                  <Calendar className="w-4 h-4" />
-                  <span>Appointments & Queue</span>
-                  <span className="ml-auto text-[11px] opacity-80">{appointments.length}</span>
-                </button>
+              {/* ACCESS GROUP */}
+              <div>
+                <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase block px-1 mb-1.5">
+                  ACCESS
+                </span>
+                <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
+                  
+                  {/* Role Switch */}
+                  <div className="p-3 flex items-center justify-between">
+                    <label className="text-sm font-bold text-zinc-900">Role</label>
+                    <div className="bg-[#e2e5eb] p-0.5 rounded-lg flex items-center w-36">
+                      <button
+                        type="button"
+                        onClick={() => setStaffFormRole('Stylist')}
+                        className={`flex-1 py-1 rounded-md text-xs font-bold text-center transition-all ${
+                          staffFormRole === 'Stylist' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-600'
+                        }`}
+                      >
+                        Stylist
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setStaffFormRole('Admin')}
+                        className={`flex-1 py-1 rounded-md text-xs font-bold text-center transition-all ${
+                          staffFormRole === 'Admin' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-600'
+                        }`}
+                      >
+                        Admin
+                      </button>
+                    </div>
+                  </div>
 
-                <button
-                  onClick={() => {
-                    setActiveTab('reports');
-                    setIsMenuOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all ${
-                    activeTab === 'reports'
-                      ? 'bg-amber-500 text-zinc-950 shadow-md font-bold'
-                      : 'text-zinc-300 hover:text-white hover:bg-zinc-800/80'
-                  }`}
-                >
-                  <BarChart3 className="w-4 h-4" />
-                  <span>Reports & Financials</span>
-                  <span className="ml-auto text-[11px] text-amber-400 font-mono">Rs. {stats.totalRevenue.toLocaleString()}</span>
-                </button>
+                  {/* PIN */}
+                  <div className="p-3.5 flex items-center justify-between">
+                    <label className="text-sm font-bold text-zinc-900">Sign-in PIN</label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="password"
+                        maxLength={4}
+                        placeholder="4 digits"
+                        value={staffFormPin}
+                        onChange={e => setStaffFormPin(e.target.value.replace(/\D/g, ''))}
+                        className="w-20 text-right text-sm text-zinc-900 placeholder-zinc-400 font-mono tracking-widest focus:outline-none"
+                      />
+                      <ChevronRight className="w-4 h-4 text-zinc-400" />
+                    </div>
+                  </div>
 
-                <button
-                  onClick={() => {
-                    setActiveTab('services');
-                    setIsMenuOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all ${
-                    activeTab === 'services'
-                      ? 'bg-amber-500 text-zinc-950 shadow-md font-bold'
-                      : 'text-zinc-300 hover:text-white hover:bg-zinc-800/80'
-                  }`}
-                >
-                  <Scissors className="w-4 h-4" />
-                  <span>Services & Pricing</span>
-                  <span className="ml-auto text-[11px] opacity-80">{services.length}</span>
-                </button>
+                  {/* Services offered */}
+                  <div className="p-3.5 flex items-center justify-between">
+                    <label className="text-sm font-bold text-zinc-900">Services offered</label>
+                    <div className="flex items-center gap-1 text-zinc-500 text-sm">
+                      <span>All services</span>
+                      <ChevronRight className="w-4 h-4 text-zinc-400" />
+                    </div>
+                  </div>
 
-                <button
-                  onClick={() => {
-                    setActiveTab('staff');
-                    setIsMenuOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all ${
-                    activeTab === 'staff'
-                      ? 'bg-amber-500 text-zinc-950 shadow-md font-bold'
-                      : 'text-zinc-300 hover:text-white hover:bg-zinc-800/80'
-                  }`}
-                >
-                  <Users className="w-4 h-4" />
-                  <span>Staff Roster & Shifts</span>
-                  <span className="ml-auto text-[11px] opacity-80">{staff.length}</span>
-                </button>
-              </nav>
+                  {/* Active Toggle */}
+                  <div className="p-3.5 flex items-center justify-between">
+                    <label className="text-sm font-bold text-zinc-900">Active</label>
+                    <button
+                      type="button"
+                      onClick={() => setStaffFormActive(!staffFormActive)}
+                      className={`relative w-12 h-7 rounded-full transition-colors ${
+                        staffFormActive ? 'bg-[#198754]' : 'bg-zinc-300'
+                      }`}
+                    >
+                      <span 
+                        className={`block w-6 h-6 rounded-full bg-white shadow-md transform transition-transform ${
+                          staffFormActive ? 'translate-x-[22px]' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </button>
+                  </div>
 
-              <div className="pt-2 border-t border-zinc-800/80 space-y-1.5 text-xs">
-                {/* Switch to Client Website */}
-                {onExitToClientWebsite && (
-                  <button
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      onExitToClientWebsite();
-                    }}
-                    className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-colors"
-                  >
-                    <Globe className="w-4 h-4 text-amber-400" />
-                    <span>View Client Booking Website</span>
-                  </button>
-                )}
-
-                {/* Logout / Switch Staff */}
-                {onLockPortal && (
-                  <button
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      onLockPortal();
-                    }}
-                    className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span>Lock Portal / Switch User</span>
-                  </button>
-                )}
+                </div>
               </div>
-            </div>
 
-            {/* Drawer Footer */}
-            <div className="pt-4 border-t border-zinc-800 text-[11px] text-zinc-500 flex items-center justify-between">
-              <span>Saloon Aquiness PWA</span>
-              <span className="text-emerald-400 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live Sync
-              </span>
-            </div>
+              {/* Delete Button (if editing existing and not owner) */}
+              {editingStaff && (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteStaff(editingStaff.id)}
+                    className="w-full py-3 bg-red-50 text-red-600 rounded-2xl font-bold text-sm hover:bg-red-100 transition-colors"
+                  >
+                    Delete staff member
+                  </button>
+                </div>
+              )}
+
+            </form>
 
           </div>
         </div>
       )}
 
-      {/* MAIN SCREEN BODY */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-3 sm:py-5 space-y-4">
-        
-        {/* VIEW 1: APPOINTMENTS & QUEUE (MAIN WORKSPACE) */}
-        {activeTab === 'appointments' && (
-          <div className="space-y-4">
+      {/* ----------------- MODAL: NEW / EDIT SERVICE (Mockup: media_1792221587302_749386f3.png) ----------------- */}
+      {showServiceModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
+          <div className="bg-[#f0f2f6] w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto">
             
-            {/* SECTION 1: DISTINCT REPORT DASHBOARD MODULE (Visual separation from bookings) */}
-            <section className="rounded-2xl bg-gradient-to-b from-zinc-900/90 to-zinc-950 border border-zinc-800 p-3.5 sm:p-4 shadow-lg space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
-                    <BarChart3 className="w-3.5 h-3.5" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold text-white tracking-wide uppercase">
-                      Today's Salon Performance
-                    </span>
-                    <span className="text-[10px] text-zinc-400 block">
-                      Live metrics for today ({todayIso})
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setActiveTab('reports')}
-                  className="flex items-center gap-1 text-[11px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg border border-amber-500/20 transition-all"
-                >
-                  <span>Full Analytics</span>
-                  <ArrowRight className="w-3 h-3" />
-                </button>
-              </div>
-
-              {/* 4 Colored Accent Metric Tiles */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
-                {/* Pending */}
-                <div className="p-2.5 rounded-xl bg-zinc-950/80 border border-amber-500/20 hover:border-amber-500/40 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-zinc-400 font-medium">Pending Requests</span>
-                    <Clock className="w-3.5 h-3.5 text-amber-400" />
-                  </div>
-                  <p className="text-xl font-bold text-amber-400 mt-1">{stats.pending}</p>
-                  <span className="text-[10px] text-zinc-500 block">Requires confirmation</span>
-                </div>
-
-                {/* Today */}
-                <div className="p-2.5 rounded-xl bg-zinc-950/80 border border-blue-500/20 hover:border-blue-500/40 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-zinc-400 font-medium">Today's Schedule</span>
-                    <Calendar className="w-3.5 h-3.5 text-blue-400" />
-                  </div>
-                  <p className="text-xl font-bold text-blue-400 mt-1">{stats.todayCount}</p>
-                  <span className="text-[10px] text-zinc-500 block">Booked clients</span>
-                </div>
-
-                {/* In Chair */}
-                <div className="p-2.5 rounded-xl bg-zinc-950/80 border border-purple-500/20 hover:border-purple-500/40 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-zinc-400 font-medium">Active in Chair</span>
-                    <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                  </div>
-                  <p className="text-xl font-bold text-purple-400 mt-1">{stats.inChair}</p>
-                  <span className="text-[10px] text-zinc-500 block">In service now</span>
-                </div>
-
-                {/* Revenue */}
-                <div className="p-2.5 rounded-xl bg-zinc-950/80 border border-emerald-500/20 hover:border-emerald-500/40 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-zinc-400 font-medium">Salon Revenue</span>
-                    <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-                  </div>
-                  <p className="text-base sm:text-lg font-bold text-emerald-400 mt-1 truncate">
-                    Rs. {stats.totalRevenue.toLocaleString()}
-                  </p>
-                  <span className="text-[10px] text-zinc-500 block">Confirmed & done</span>
-                </div>
-              </div>
-            </section>
-
-            {/* SECTION 2: DISTINCT CLIENT QUEUE & BOOKING SECTION */}
-            <section className="space-y-3 pt-1">
-              
-              {/* Header Separator with Section Title */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1.5 border-b border-zinc-800">
-                <div className="flex items-center gap-2">
-                  <Scissors className="w-4 h-4 text-amber-400" />
-                  <h2 className="text-xs uppercase font-extrabold tracking-wider text-zinc-200">
-                    Live Booking Queue & Appointments
-                  </h2>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-bold border border-amber-500/30">
-                    {filteredAppointments.length} Active
-                  </span>
-                </div>
-
-                {/* Stylist Scope Switcher: All vs My Queue */}
-                <div className="flex items-center rounded-xl bg-zinc-900 p-0.5 border border-zinc-800 self-start sm:self-auto shrink-0">
-                  <button
-                    onClick={() => setStylistScope('all')}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
-                      stylistScope === 'all'
-                        ? 'bg-amber-500 text-zinc-950 shadow-sm'
-                        : 'text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    All Staff
-                  </button>
-                  <button
-                    onClick={() => setStylistScope('mine')}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all flex items-center gap-1 ${
-                      stylistScope === 'mine'
-                        ? 'bg-amber-500 text-zinc-950 shadow-sm'
-                        : 'text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    <UserCheck className="w-3 h-3" />
-                    <span>My Queue ({currentUser.name.split(' ')[0]})</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Status Filter Pills & Search Bar */}
-              <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between">
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-                  {['all', 'pending', 'confirmed', 'in_progress', 'completed'].map(st => (
-                    <button
-                      key={st}
-                      onClick={() => setStatusFilter(st)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-medium capitalize whitespace-nowrap transition-colors ${
-                        statusFilter === st
-                          ? 'bg-zinc-100 text-zinc-950 font-bold shadow-sm'
-                          : 'bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800'
-                      }`}
-                    >
-                      {st === 'in_progress' ? 'In Chair' : st}
-                    </button>
-                  ))}
-
-                  <button
-                    onClick={() => setDateFilter(dateFilter === 'today' ? 'all' : 'today')}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${
-                      dateFilter === 'today'
-                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 font-bold'
-                        : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white'
-                    }`}
-                  >
-                    {dateFilter === 'today' ? '📅 Today' : 'All Dates'}
-                  </button>
-                </div>
-
-                {/* Compact Search Bar */}
-                <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    placeholder="Search client, phone, service..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className="w-full sm:w-60 pl-8 pr-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-              </div>
-
-              {/* APPOINTMENT CARDS (WITH STATUS STRIPES) */}
-              {filteredAppointments.length === 0 ? (
-                <div className="p-10 text-center rounded-2xl bg-zinc-900/30 border border-zinc-800/80">
-                  <Clock className="w-7 h-7 text-zinc-600 mx-auto mb-2" />
-                  <p className="text-zinc-400 text-xs font-medium">No appointments matching this filter.</p>
-                  <button 
-                    onClick={() => { setStatusFilter('all'); setDateFilter('all'); setStylistScope('all'); setSearchQuery(''); }}
-                    className="text-xs text-amber-400 hover:underline mt-1.5 inline-block"
-                  >
-                    Reset filters
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-2.5">
-                  {filteredAppointments.map(apt => (
-                    <div 
-                      key={apt.id}
-                      className={`p-3.5 sm:p-4 rounded-2xl border border-zinc-800 transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 ${getStatusCardStyle(apt.status)}`}
-                    >
-                      {/* Customer & Service Info */}
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-white text-sm sm:text-base">{apt.customerName}</span>
-                          {getStatusBadge(apt.status)}
-                          <span className="font-mono text-[10px] text-zinc-500">#{apt.id.substring(4, 9)}</span>
-                        </div>
-
-                        <div className="flex items-center gap-3 text-xs text-zinc-300">
-                          <a href={`tel:${apt.customerPhone}`} className="flex items-center gap-1 text-amber-400/90 hover:text-amber-400 font-medium">
-                            <Phone className="w-3 h-3" />
-                            <span>{apt.customerPhone}</span>
-                          </a>
-                          <span className="text-zinc-600">•</span>
-                          <span className="text-zinc-300 font-medium truncate">{apt.serviceName}</span>
-                          <span className="text-amber-400 font-mono font-bold">(Rs. {apt.servicePrice.toLocaleString()})</span>
-                        </div>
-
-                        <div className="flex items-center gap-2 text-[11px] text-zinc-400">
-                          <span>📅 {apt.date}</span>
-                          <span className="text-zinc-600">•</span>
-                          <span className="font-bold text-amber-400">⏰ {apt.timeSlot}</span>
-                          <span className="text-zinc-600">•</span>
-                          <span>Stylist: <strong className="text-zinc-300">{apt.staffName}</strong></span>
-                        </div>
-
-                        {apt.notes && (
-                          <p className="text-[11px] text-zinc-400 bg-zinc-950/70 px-2 py-0.5 rounded border border-zinc-800/80 inline-block mt-0.5">
-                            "{apt.notes}"
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex items-center gap-1.5 flex-wrap pt-2 md:pt-0 border-t md:border-t-0 border-zinc-800 shrink-0">
-                        {apt.status === 'pending' && (
-                          <button
-                            onClick={() => handleUpdateStatus(apt.id, 'confirmed')}
-                            className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1 active:scale-95 transition-all"
-                          >
-                            <Check className="w-3.5 h-3.5" /> Confirm
-                          </button>
-                        )}
-
-                        {apt.status === 'confirmed' && (
-                          <button
-                            onClick={() => handleUpdateStatus(apt.id, 'in_progress')}
-                            className="px-3 py-1.5 rounded-xl bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/30 text-xs font-semibold flex items-center gap-1 active:scale-95 transition-all"
-                          >
-                            <Sparkles className="w-3.5 h-3.5" /> Start (In Chair)
-                          </button>
-                        )}
-
-                        {apt.status === 'in_progress' && (
-                          <button
-                            onClick={() => handleUpdateStatus(apt.id, 'completed')}
-                            className="px-3.5 py-1.5 rounded-xl bg-emerald-500 text-zinc-950 hover:bg-emerald-400 text-xs font-bold flex items-center gap-1 active:scale-95 transition-all shadow-md"
-                          >
-                            <Check className="w-3.5 h-3.5" /> Complete
-                          </button>
-                        )}
-
-                        {apt.status !== 'cancelled' && apt.status !== 'completed' && (
-                          <button
-                            onClick={() => handleUpdateStatus(apt.id, 'cancelled')}
-                            className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                            title="Cancel appointment"
-                          >
-                            <XCircle className="w-4 h-4" />
-                          </button>
-                        )}
-
-                        <button
-                          onClick={() => handleDeleteAppointment(apt.id)}
-                          className="p-1.5 rounded-lg text-zinc-600 hover:text-red-400 transition-colors"
-                          title="Delete record"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-
-          </div>
-        )}
-
-        {/* VIEW 2: DEDICATED FULL REPORTS & FINANCIAL ANALYTICS */}
-        {activeTab === 'reports' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
-              <div>
-                <h2 className="font-serif text-lg font-bold text-white flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-amber-400" />
-                  <span>Salon Financial & Performance Report</span>
-                </h2>
-                <p className="text-xs text-zinc-400 mt-0.5">
-                  Business revenue, stylist output, and service category breakdown.
-                </p>
-              </div>
-
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-4 py-3.5 bg-white border-b border-zinc-200/80 sticky top-0 z-10">
               <button
-                onClick={() => setActiveTab('appointments')}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 hover:text-white"
+                type="button"
+                onClick={() => setShowServiceModal(false)}
+                className="text-[#0d6efd] font-semibold text-base hover:underline"
               >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Back to Queue</span>
+                Cancel
+              </button>
+              <h3 className="font-bold text-base text-zinc-900">
+                {editingService ? 'Edit service' : 'New service'}
+              </h3>
+              <button
+                type="button"
+                onClick={handleSaveService}
+                className="text-[#0d6efd] font-bold text-base hover:underline"
+              >
+                Save
               </button>
             </div>
 
-            {/* Financial Overview Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="p-4 rounded-2xl bg-zinc-900/80 border border-emerald-500/30">
-                <span className="text-xs text-zinc-400 font-medium block">Total Realized Revenue</span>
-                <p className="font-serif text-2xl font-bold text-emerald-400 mt-1">
-                  Rs. {stats.totalRevenue.toLocaleString()}
-                </p>
-                <span className="text-[11px] text-zinc-500 block mt-1">From completed & confirmed clients</span>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-zinc-900/80 border border-amber-500/30">
-                <span className="text-xs text-zinc-400 font-medium block">Average Ticket Size</span>
-                <p className="font-serif text-2xl font-bold text-amber-400 mt-1">
-                  Rs. {stats.avgTicket.toLocaleString()}
-                </p>
-                <span className="text-[11px] text-zinc-500 block mt-1">Per appointment session</span>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-zinc-900/80 border border-blue-500/30">
-                <span className="text-xs text-zinc-400 font-medium block">Completed Appointments</span>
-                <p className="font-serif text-2xl font-bold text-blue-400 mt-1">
-                  {stats.completed} <span className="text-sm font-normal text-zinc-500">/ {stats.total}</span>
-                </p>
-                <span className="text-[11px] text-zinc-500 block mt-1">Successfully serviced clients</span>
-              </div>
-            </div>
-
-            {/* Stylist Performance Breakdown */}
-            <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-3">
-              <h3 className="font-bold text-white text-sm flex items-center gap-2">
-                <Award className="w-4 h-4 text-amber-400" />
-                <span>Barber & Stylist Revenue Breakdown</span>
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {reportData.stylistBreakdown.map(st => (
-                  <div key={st.id} className="p-3.5 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center gap-3">
-                    <img 
-                      src={st.avatar} 
-                      alt={st.name} 
-                      className="w-11 h-11 rounded-full object-cover ring-1 ring-amber-500/40" 
+            <form onSubmit={handleSaveService} className="p-4 space-y-5">
+              
+              {/* DETAILS GROUP */}
+              <div>
+                <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase block px-1 mb-1.5">
+                  DETAILS
+                </span>
+                <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
+                  
+                  <div className="p-3.5 flex items-center justify-between">
+                    <label className="text-sm font-bold text-zinc-900 w-28">Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Classic Haircut"
+                      value={serviceFormName}
+                      onChange={e => setServiceFormName(e.target.value)}
+                      className="flex-1 text-right text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none"
                     />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-white text-xs truncate">{st.name}</span>
-                        <span className="text-xs font-mono font-bold text-emerald-400">Rs. {st.revenue.toLocaleString()}</span>
-                      </div>
-                      <p className="text-[10px] text-zinc-400 truncate">{st.role}</p>
-                      
-                      <div className="mt-2 flex items-center justify-between text-[10px] text-zinc-500">
-                        <span>{st.appointmentsCount} total bookings</span>
-                        <span className="text-emerald-400 font-medium">{st.completedCount} completed</span>
-                      </div>
+                  </div>
+
+                  <div className="p-3.5 flex items-center justify-between">
+                    <label className="text-sm font-bold text-zinc-900 w-28">Price (Rs.)</label>
+                    <input
+                      type="number"
+                      required
+                      placeholder="0"
+                      value={serviceFormPrice}
+                      onChange={e => setServiceFormPrice(e.target.value)}
+                      className="flex-1 text-right text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="p-3.5 flex items-center justify-between">
+                    <label className="text-sm font-bold text-zinc-900 w-28">Duration</label>
+                    <div className="flex items-center gap-1">
+                      <select
+                        value={serviceFormDuration}
+                        onChange={e => setServiceFormDuration(e.target.value)}
+                        className="bg-transparent text-right text-sm text-zinc-900 font-semibold focus:outline-none cursor-pointer"
+                      >
+                        <option value="15">15 min</option>
+                        <option value="30">30 min</option>
+                        <option value="45">45 min</option>
+                        <option value="60">60 min</option>
+                        <option value="90">90 min</option>
+                        <option value="120">120 min</option>
+                      </select>
+                      <ChevronRight className="w-4 h-4 text-zinc-400 pointer-events-none" />
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
 
-            {/* Category Distribution */}
-            <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-3">
-              <h3 className="font-bold text-white text-sm flex items-center gap-2">
-                <Scissors className="w-4 h-4 text-amber-400" />
-                <span>Service Category Revenue Share</span>
-              </h3>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                {Object.entries(reportData.categories).map(([category, data]) => (
-                  <div key={category} className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 text-center">
-                    <span className="text-[10px] uppercase font-bold text-amber-400 block truncate">{category}</span>
-                    <p className="text-base font-bold text-white mt-1">Rs. {data.revenue.toLocaleString()}</p>
-                    <span className="text-[10px] text-zinc-500 block">{data.count} bookings</span>
+                  <div className="p-3.5 flex items-center justify-between">
+                    <label className="text-sm font-bold text-zinc-900 w-28">Description</label>
+                    <input
+                      type="text"
+                      placeholder="Optional"
+                      value={serviceFormDescription}
+                      onChange={e => setServiceFormDescription(e.target.value)}
+                      className="flex-1 text-right text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none"
+                    />
                   </div>
-                ))}
+
+                </div>
               </div>
-            </div>
 
-          </div>
-        )}
-
-        {/* VIEW 3: SERVICES & PRICING CATALOG */}
-        {activeTab === 'services' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
+              {/* AVAILABILITY GROUP */}
               <div>
-                <h2 className="font-serif text-lg font-bold text-white">Salon Services Catalog</h2>
-                <p className="text-xs text-zinc-400">
-                  {isAdmin ? 'Add, edit, or adjust service prices.' : 'Price & duration reference (View only).'}
-                </p>
+                <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase block px-1 mb-1.5">
+                  AVAILABILITY
+                </span>
+                <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
+                  
+                  <div className="p-3.5 flex items-center justify-between">
+                    <label className="text-sm font-bold text-zinc-900">Offered by</label>
+                    <div className="flex items-center gap-1 text-zinc-500 text-sm">
+                      <span>All staff</span>
+                      <ChevronRight className="w-4 h-4 text-zinc-400" />
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 flex items-center justify-between">
+                    <label className="text-sm font-bold text-zinc-900">Show in client booking</label>
+                    <button
+                      type="button"
+                      onClick={() => setServiceFormActive(!serviceFormActive)}
+                      className={`relative w-12 h-7 rounded-full transition-colors ${
+                        serviceFormActive ? 'bg-[#198754]' : 'bg-zinc-300'
+                      }`}
+                    >
+                      <span 
+                        className={`block w-6 h-6 rounded-full bg-white shadow-md transform transition-transform ${
+                          serviceFormActive ? 'translate-x-[22px]' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                </div>
               </div>
 
-              {isAdmin ? (
-                <button
-                  onClick={() => setShowAddServiceModal(true)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs shadow-md"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add New Service</span>
-                </button>
-              ) : (
-                <div className="flex items-center gap-1 text-xs text-zinc-400 bg-zinc-900 px-3 py-1.5 rounded-xl border border-zinc-800">
-                  <Lock className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Admin managed</span>
+              {/* Delete Button (if editing) */}
+              {editingService && (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteService(editingService.id)}
+                    className="w-full py-3 bg-red-50 text-red-600 rounded-2xl font-bold text-sm hover:bg-red-100 transition-colors"
+                  >
+                    Delete service
+                  </button>
                 </div>
               )}
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {services.map(srv => (
-                <div 
-                  key={srv.id}
-                  className="p-4 rounded-2xl bg-zinc-900/70 border border-zinc-800 flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="flex items-start justify-between">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                        {srv.category}
-                      </span>
-                      {isAdmin && (
-                        <button
-                          onClick={() => handleDeleteService(srv.id)}
-                          className="text-zinc-600 hover:text-red-400 p-1"
-                          title="Delete Service"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                    <h3 className="font-semibold text-white text-base mt-2">{srv.name}</h3>
-                    <p className="text-xs text-zinc-400 mt-1 leading-relaxed">{srv.description}</p>
-                  </div>
+            </form>
 
-                  <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-zinc-800">
-                    <span className="text-xs text-zinc-400 flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5" /> {srv.durationMinutes} min
-                    </span>
-                    <span className="font-serif font-bold text-amber-400 text-base">
-                      Rs. {srv.price.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* VIEW 4: STAFF ROSTER & SHIFTS */}
-        {activeTab === 'staff' && (
-          <div className="space-y-4">
-            <div>
-              <h2 className="font-serif text-lg font-bold text-white">Staff Roster & Duty Shifts</h2>
-              <p className="text-xs text-zinc-400">Toggle active barber & stylist availability in the salon.</p>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {staff.map(member => {
-                const isMemberDidula = member.id === 'staff-1' || member.name.toLowerCase().includes('didula');
-                const isCurrentUser = member.id === currentUser.id;
-
-                return (
-                  <div 
-                    key={member.id}
-                    className={`p-4 rounded-2xl bg-zinc-900/70 border text-center flex flex-col items-center relative ${
-                      isCurrentUser ? 'border-amber-500/50 ring-1 ring-amber-500/20' : 'border-zinc-800'
-                    }`}
-                  >
-                    {isMemberDidula && (
-                      <div className="absolute top-3 right-3 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center gap-1">
-                        <Crown className="w-2.5 h-2.5" /> Admin
-                      </div>
-                    )}
-
-                    <img 
-                      src={member.avatar} 
-                      alt={member.name}
-                      className="w-16 h-16 rounded-full object-cover border-2 border-amber-500/40 mb-2"
-                    />
-                    <h3 className="font-bold text-white text-sm">{member.name}</h3>
-                    <p className="text-xs text-amber-400/90 font-medium">{member.role}</p>
-                    <p className="text-[11px] text-zinc-400 mt-0.5">{member.specialty}</p>
-
-                    <div className="my-3 pt-2 border-t border-zinc-800/80 w-full flex items-center justify-around text-xs">
-                      <div>
-                        <span className="text-zinc-500 block text-[10px]">Rating</span>
-                        <span className="font-bold text-white">⭐ {member.rating}</span>
-                      </div>
-                      <div>
-                        <span className="text-zinc-500 block text-[10px]">Status</span>
-                        <span className={`font-semibold ${member.available ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {member.available ? 'On Duty' : 'Off Duty'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {(isAdmin || isCurrentUser) ? (
-                      <button
-                        onClick={() => handleToggleStaff(member.id)}
-                        className={`w-full py-1.5 rounded-xl text-xs font-semibold transition-colors ${
-                          member.available 
-                            ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700' 
-                            : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/40'
-                        }`}
-                      >
-                        {member.available ? 'Set Off-Duty' : 'Set On-Duty'}
-                      </button>
-                    ) : (
-                      <div className="w-full py-1.5 text-center text-[11px] text-zinc-500 bg-zinc-950/40 rounded-xl border border-zinc-800/60">
-                        Stylist managed
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-      </main>
-
-      {/* ADD SERVICE MODAL (ADMIN ONLY) */}
-      {showAddServiceModal && isAdmin && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl animate-fade-in">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Crown className="w-4 h-4 text-amber-400" />
-                <h3 className="font-serif text-base font-bold text-white">Add New Salon Service</h3>
-              </div>
-              <button onClick={() => setShowAddServiceModal(false)} className="text-zinc-400 hover:text-white">✕</button>
+      {/* ----------------- ACTION SHEET: APPOINTMENT MORE OPTIONS ----------------- */}
+      {actionAppointment && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
+          <div className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl p-4 space-y-3">
+            <div className="text-center pb-2 border-b border-zinc-100">
+              <h4 className="font-bold text-base text-zinc-900">{actionAppointment.customerName}</h4>
+              <p className="text-xs text-zinc-500">{actionAppointment.serviceName} · {actionAppointment.timeSlot}</p>
             </div>
 
-            <form onSubmit={handleAddService} className="space-y-3 text-xs">
-              <div>
-                <label className="block text-zinc-300 font-semibold mb-1">Service Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Skin Fade & Beard Contouring"
-                  value={newServiceName}
-                  onChange={e => setNewServiceName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
-                />
-              </div>
+            <div className="space-y-2">
+              <a
+                href={`tel:${actionAppointment.customerPhone}`}
+                className="w-full py-3 px-4 rounded-xl bg-blue-50 text-[#0d6efd] font-bold text-sm flex items-center justify-center gap-2"
+              >
+                <Phone className="w-4 h-4" /> Call {actionAppointment.customerPhone}
+              </a>
 
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block text-zinc-300 font-semibold mb-1">Category</label>
-                  <select
-                    value={newServiceCategory}
-                    onChange={e => setNewServiceCategory(e.target.value as ServiceCategory)}
-                    className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
-                  >
-                    <option value="Hair">Hair</option>
-                    <option value="Beard & Shave">Beard & Shave</option>
-                    <option value="Facials & Skin">Facials & Skin</option>
-                    <option value="Spa & Treatments">Spa & Treatments</option>
-                    <option value="VIP Packages">VIP Packages</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-zinc-300 font-semibold mb-1">Price (Rs.)</label>
-                  <input
-                    type="number"
-                    min="500"
-                    step="100"
-                    value={newServicePrice}
-                    onChange={e => setNewServicePrice(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-zinc-300 font-semibold mb-1">Duration (Minutes)</label>
-                <input
-                  type="number"
-                  min="15"
-                  step="5"
-                  value={newServiceDuration}
-                  onChange={e => setNewServiceDuration(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-zinc-300 font-semibold mb-1">Description</label>
-                <textarea
-                  rows={2}
-                  placeholder="Describe treatment..."
-                  value={newServiceDescription}
-                  onChange={e => setNewServiceDescription(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-1">
+              {actionAppointment.status !== 'completed' && (
                 <button
                   type="button"
-                  onClick={() => setShowAddServiceModal(false)}
-                  className="px-3 py-1.5 rounded-xl bg-zinc-800 text-zinc-300 hover:text-white"
+                  onClick={() => {
+                    handleUpdateStatus(actionAppointment.id, 'completed');
+                    setActionAppointment(null);
+                  }}
+                  className="w-full py-3 px-4 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-sm flex items-center justify-center gap-2"
                 >
-                  Cancel
+                  <Check className="w-4 h-4" /> Mark as Completed
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold"
-                >
-                  Save Service
-                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => handleDeleteAppointment(actionAppointment.id)}
+                className="w-full py-3 px-4 rounded-xl bg-red-50 text-red-600 font-bold text-sm flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" /> Delete appointment
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setActionAppointment(null)}
+              className="w-full py-3 bg-zinc-100 text-zinc-700 font-bold text-sm rounded-xl mt-2"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ----------------- ACTION SHEET: TOP PROFILE MENU ----------------- */}
+      {showProfileMenu && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
+          <div className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 space-y-4">
+            <div className="flex items-center gap-3 pb-3 border-b border-zinc-100">
+              <div className="w-12 h-12 rounded-full bg-[#0d6efd] text-white font-extrabold text-xl flex items-center justify-center shadow-md">
+                {currentUser.name.charAt(0)}
               </div>
-            </form>
+              <div className="min-w-0 flex-1">
+                <h4 className="font-bold text-base text-zinc-900 truncate">{currentUser.name}</h4>
+                <p className="text-xs text-zinc-500 truncate">{currentUser.title || currentUser.role} · {currentUser.email}</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {onExitToClientWebsite && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    onExitToClientWebsite();
+                  }}
+                  className="w-full py-3 px-4 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-bold text-sm flex items-center gap-3 text-left transition-colors"
+                >
+                  <Globe className="w-4 h-4 text-[#0d6efd]" /> Client Booking Website
+                </button>
+              )}
+
+              {onLockPortal && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    onLockPortal();
+                  }}
+                  className="w-full py-3 px-4 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-bold text-sm flex items-center gap-3 text-left transition-colors"
+                >
+                  <Lock className="w-4 h-4 text-zinc-600" /> Lock Portal (Require PIN)
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('Sign out of staff portal?')) {
+                    localStorage.removeItem('aquiness_staff_auth');
+                    if (onLockPortal) onLockPortal();
+                  }
+                }}
+                className="w-full py-3 px-4 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-bold text-sm flex items-center gap-3 text-left transition-colors"
+              >
+                <LogOut className="w-4 h-4" /> Sign Out
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowProfileMenu(false)}
+              className="w-full py-3 bg-zinc-100 text-zinc-700 font-bold text-sm rounded-xl mt-1"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}

@@ -53,6 +53,15 @@ export const StorageService = {
     return updated;
   },
 
+  toggleServiceActive(serviceId: string): SalonService[] {
+    const current = this.getServices();
+    const updated = current.map(s => 
+      s.id === serviceId ? { ...s, active: s.active === false ? true : false } : s
+    );
+    setItem(STORAGE_KEYS.SERVICES, updated);
+    return updated;
+  },
+
   deleteService(serviceId: string): SalonService[] {
     const current = this.getServices();
     const updated = current.filter(s => s.id !== serviceId);
@@ -68,6 +77,27 @@ export const StorageService = {
       return INITIAL_STAFF;
     }
     return list;
+  },
+
+  addOrUpdateStaff(staffMember: StaffMember): StaffMember[] {
+    const current = this.getStaff();
+    const idx = current.findIndex(s => s.id === staffMember.id);
+    let updated: StaffMember[];
+    if (idx >= 0) {
+      updated = [...current];
+      updated[idx] = staffMember;
+    } else {
+      updated = [...current, staffMember];
+    }
+    setItem(STORAGE_KEYS.STAFF, updated);
+    return updated;
+  },
+
+  deleteStaff(staffId: string): StaffMember[] {
+    const current = this.getStaff();
+    const updated = current.filter(s => s.id !== staffId);
+    setItem(STORAGE_KEYS.STAFF, updated);
+    return updated;
   },
 
   toggleStaffAvailability(staffId: string): StaffMember[] {

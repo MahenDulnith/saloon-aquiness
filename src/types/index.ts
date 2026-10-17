@@ -10,6 +10,8 @@ export interface SalonService {
   durationMinutes: number;
   description: string;
   popular?: boolean;
+  active?: boolean; // show in client booking toggle
+  offeredBy?: string[]; // staff IDs or 'all'
 }
 
 export interface StaffMember {
@@ -21,8 +23,11 @@ export interface StaffMember {
   reviewsCount: number;
   avatar: string;
   email?: string;
+  phone?: string;
+  pin?: string;
   available: boolean;
   workingDays: number[]; // 0 for Sun, 1 for Mon, etc.
+  servicesOffered?: string[]; // service IDs or 'all'
 }
 
 export interface CustomerProfile {

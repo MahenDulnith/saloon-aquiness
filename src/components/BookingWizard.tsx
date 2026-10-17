@@ -76,10 +76,11 @@ export const BookingWizard: React.FC<BookingWizardProps> = ({
   // Filtered services
   const filteredServices = useMemo(() => {
     return services.filter(srv => {
+      const matchActive = srv.active !== false;
       const matchCat = categoryFilter === 'All' || srv.category === categoryFilter;
       const matchSearch = srv.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           srv.description.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchCat && matchSearch;
+      return matchActive && matchCat && matchSearch;
     });
   }, [services, categoryFilter, searchQuery]);
 
