@@ -4,6 +4,7 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswor
 import { auth, isFirebaseConfigured } from '../firebase/config';
 import { CurrentStaffUser, StaffMember } from '../types';
 import { INITIAL_STAFF } from '../data/mockData';
+import { FirebaseService } from '../services/firebaseService';
 
 interface StaffLoginProps {
   onSuccess: (user: CurrentStaffUser) => void;
@@ -105,8 +106,10 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
           timestamp: Date.now()
         }));
 
+        FirebaseService.sendStaffLoginAlert(`Successful Admin PIN login: ${user.name}`);
         onSuccess(user);
       } else {
+        FirebaseService.sendStaffLoginAlert(`Failed PIN entered for ${currentSelectedMember.name} (Admin)`);
         setPinError('Incorrect PIN. Try again.');
         setTimeout(() => {
           setPin('');
@@ -130,8 +133,10 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
           timestamp: Date.now()
         }));
 
+        FirebaseService.sendStaffLoginAlert(`Successful Staff PIN login: ${user.name}`);
         onSuccess(user);
       } else {
+        FirebaseService.sendStaffLoginAlert(`Failed PIN entered for ${currentSelectedMember.name} (Staff)`);
         setPinError(`Incorrect PIN for ${currentSelectedMember.name.split(' ')[0]}.`);
         setTimeout(() => {
           setPin('');
@@ -223,8 +228,10 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
         timestamp: Date.now()
       }));
 
+      FirebaseService.sendStaffLoginAlert(`Successful Email login: ${user.name} (${email.trim()})`);
       onSuccess(user);
     } catch (err: any) {
+      FirebaseService.sendStaffLoginAlert(`Failed Email login attempt: ${email.trim()}`);
       if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
         try {
           const newCred = await createUserWithEmailAndPassword(auth, email.trim(), password);
@@ -244,6 +251,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
             timestamp: Date.now()
           }));
 
+          FirebaseService.sendStaffLoginAlert(`New Staff registered & logged in: ${user.name} (${email.trim()})`);
           onSuccess(user);
           return;
         } catch {

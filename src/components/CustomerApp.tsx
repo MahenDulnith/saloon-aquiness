@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Home as HomeIcon, Calendar as CalendarIcon, Ticket, User, 
   Scissors, Phone, MapPin, Clock, Sun, Moon, ChevronRight, 
-  ChevronLeft, Check, Sparkles, Star, Lock, QrCode, 
+  ChevronLeft, Check, Sparkles, Star, QrCode, 
   CalendarDays, ExternalLink, CheckCircle2, MessageSquare, AlertCircle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -162,6 +162,30 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
+
+  // Secret 10-tap gesture on Settings/Profile Logo to access Staff Portal
+  const [logoTapCount, setLogoTapCount] = useState<number>(0);
+  const logoTapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleLogoTap = () => {
+    if (logoTapTimeoutRef.current) {
+      clearTimeout(logoTapTimeoutRef.current);
+    }
+
+    const nextCount = logoTapCount + 1;
+    if (nextCount >= 10) {
+      setLogoTapCount(0);
+      // Trigger security alert email to Didula
+      FirebaseService.sendStaffLoginAlert('Secret 10-tap logo gesture unlocked on Client Profile page');
+      // Navigate to staff portal
+      onGoToStaffPortal();
+    } else {
+      setLogoTapCount(nextCount);
+      logoTapTimeoutRef.current = setTimeout(() => {
+        setLogoTapCount(0);
+      }, 3000);
+    }
+  };
 
   // Bottom Tabs: 'home' | 'book' | 'bookings' | 'info'
   const [activeTab, setActiveTab] = useState<'home' | 'book' | 'bookings' | 'info'>('home');
@@ -1533,7 +1557,11 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
               <div className={`p-4 rounded-3xl border flex items-center gap-3.5 ${
                 isDark ? 'bg-[#18181b] border-zinc-800' : 'bg-white border-zinc-200/80 shadow-sm'
               }`}>
-                <div className="relative shrink-0">
+                <div 
+                  onClick={handleLogoTap}
+                  className="relative shrink-0 cursor-pointer select-none active:scale-95 transition-transform"
+                  title="Salon Aquiness"
+                >
                   <div className="absolute -inset-1 rounded-full blur-sm opacity-80 bg-gradient-to-r from-[#e5a43b] to-[#d9982f] pointer-events-none" />
                   <img
                     src="/logo.png"
@@ -1674,25 +1702,6 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                     </span>
                   </a>
                 </div>
-              </div>
-
-              {/* STAFF & ADMIN PORTAL LINK (Clean, small link as requested) */}
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={onGoToStaffPortal}
-                  className={`w-full p-3.5 rounded-2xl border flex items-center justify-between transition-colors ${
-                    isDark
-                      ? 'bg-zinc-900/50 border-zinc-800/80 text-zinc-400 hover:text-white'
-                      : 'bg-white border-zinc-200/80 text-zinc-600 hover:text-zinc-900 shadow-sm'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 text-xs font-bold">
-                    <Lock className="w-4 h-4 text-zinc-400" />
-                    <span>Staff & Admin Sign In</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-zinc-400" />
-                </button>
               </div>
 
             </main>

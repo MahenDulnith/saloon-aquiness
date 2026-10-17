@@ -8,7 +8,8 @@ import {
   onSnapshot, 
   query, 
   orderBy,
-  serverTimestamp
+  serverTimestamp,
+  addDoc
 } from "firebase/firestore";
 import { db, isFirebaseConfigured } from "../firebase/config";
 import { Appointment, SalonService, StaffMember, AppointmentStatus } from "../types";
@@ -256,6 +257,80 @@ export const FirebaseService = {
     } catch (e) {
       console.warn("Failed to subscribe to appointments:", e);
       return () => {};
+    }
+  },
+
+  // Security alert: sends email alert when someone accesses staff portal from client view
+  async sendStaffLoginAlert(reason: string = 'Secret 10-tap gesture on client profile'): Promise<void> {
+    const timestamp = new Date().toLocaleString('en-US', {
+      timeZone: 'Asia/Colombo',
+      dateStyle: 'full',
+      timeStyle: 'medium'
+    });
+    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown Device';
+    const targetEmail = 'didula@saloonaquiness.lk';
+
+    // 1. Log to Firestore security_alerts
+    try {
+      if (isFirebaseConfigured()) {
+        await addDoc(collection(db, 'security_alerts'), {
+          event: 'staff_portal_access_from_client_view',
+          reason,
+          targetEmail,
+          timestamp: new Date().toISOString(),
+          formattedTime: timestamp,
+          userAgent,
+          source: 'client_pwa_10_tap_gesture'
+        });
+
+        // 2. Queue in Firestore 'mail' collection (Firebase Trigger Email extension)
+        await addDoc(collection(db, 'mail'), {
+          to: [targetEmail],
+          message: {
+            subject: '⚠️ Security Alert: Staff Login Attempt from Client Page',
+            text: `Alert: Someone accessed the staff login portal from the client page at ${timestamp}.\nDevice: ${userAgent}\nTrigger: ${reason}`,
+            html: `
+              <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 500px; padding: 24px; border: 1px solid #e4e4e7; border-radius: 16px;">
+                <h2 style="color: #d97706; margin-top: 0;">⚠️ Aquiness Barber Security Alert</h2>
+                <p style="color: #3f3f46; font-size: 14px; line-height: 1.5;">
+                  Someone accessed the <strong>Staff Sign In Portal</strong> from the customer booking page.
+                </p>
+                <div style="background-color: #f4f4f5; padding: 14px; border-radius: 10px; font-size: 13px; color: #18181b; margin: 16px 0;">
+                  <p style="margin: 4px 0;"><strong>Time:</strong> ${timestamp}</p>
+                  <p style="margin: 4px 0;"><strong>Trigger:</strong> ${reason}</p>
+                  <p style="margin: 4px 0;"><strong>Device:</strong> ${userAgent}</p>
+                </div>
+                <p style="color: #71717a; font-size: 12px; margin-bottom: 0;">
+                  If this was you, you can safely disregard this alert.
+                </p>
+              </div>
+            `
+          },
+          createdAt: serverTimestamp()
+        });
+      }
+    } catch (err) {
+      console.warn('Error recording security alert to Firestore:', err);
+    }
+
+    // 3. Send email to Didula via FormSubmit email relay
+    try {
+      await fetch('https://formsubmit.co/ajax/didula@saloonaquiness.lk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          _subject: '⚠️ Security Alert: Staff Sign-In Accessed from Client Page',
+          alert: 'Someone accessed the staff portal from the customer booking page.',
+          timestamp: timestamp,
+          device: userAgent,
+          trigger: reason
+        })
+      });
+    } catch (err) {
+      console.warn('Error sending alert email notification:', err);
     }
   }
 };
