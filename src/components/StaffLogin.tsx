@@ -224,12 +224,15 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
       
       <div className="w-full max-w-[340px] sm:max-w-[360px] flex flex-col items-center">
         
-        {/* Top Official Logo */}
-        <img 
-          src="/logo.png" 
-          alt="Aquiness Barber Logo" 
-          className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover shadow-lg ring-2 ring-black/5 hover:scale-105 transition-transform" 
-        />
+        {/* Top Official Logo with Gold Glow */}
+        <div className="relative">
+          <div className="absolute -inset-2 bg-gradient-to-r from-amber-500/60 via-amber-400/50 to-amber-600/60 rounded-full blur-md opacity-75 pointer-events-none" />
+          <img 
+            src="/logo.png" 
+            alt="Aquiness Barber Logo" 
+            className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover ring-2 ring-amber-500 shadow-xl shadow-amber-500/35 hover:scale-105 transition-transform" 
+          />
+        </div>
 
         {/* Title & Subtitle */}
         <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight mt-3 text-center">
