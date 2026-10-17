@@ -332,11 +332,11 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 {/* Logo & Shop Location */}
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="relative shrink-0">
-                    <div className="absolute -inset-1 rounded-full blur-sm opacity-75 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 pointer-events-none" />
+                    <div className="absolute -inset-1 rounded-full blur-sm opacity-75 bg-gradient-to-r from-[#e5a43b] via-[#d9982f] to-[#b37d22] pointer-events-none" />
                     <img 
                       src="/logo.png" 
                       alt="Aquiness Barber" 
-                      className="relative w-10 h-10 rounded-full object-cover ring-2 ring-amber-500 shadow-md shrink-0"
+                      className="relative w-10 h-10 rounded-full object-cover ring-2 ring-[#e5a43b] shadow-md shrink-0"
                     />
                   </div>
                   <div className="min-w-0">
@@ -365,7 +365,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                     onClick={toggleTheme}
                     className={`p-2 rounded-full transition-colors ${
                       isDark 
-                        ? 'bg-zinc-900 border border-zinc-800 text-amber-400 hover:text-amber-300' 
+                        ? 'bg-zinc-900 border border-zinc-800 text-[#e5a43b] hover:text-[#f3b552]' 
                         : 'bg-white border border-zinc-200/90 text-zinc-700 hover:text-zinc-900 shadow-sm'
                     }`}
                     title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
@@ -394,16 +394,16 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 </p>
               </div>
 
-              {/* Primary "Book Appointment" Action */}
+              {/* Primary "Book Appointment" Action (Solid Warm Gold in Dark Mode) */}
               <button
                 type="button"
                 onClick={() => {
                   setStep(1);
                   setActiveTab('book');
                 }}
-                className={`w-full py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-all ${
+                className={`w-full py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition-all ${
                   isDark
-                    ? 'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-zinc-950 shadow-amber-500/25 hover:brightness-105'
+                    ? 'bg-[#e5a43b] hover:bg-[#d9982f] text-zinc-950 shadow-[#e5a43b]/20'
                     : 'bg-[#0d6efd] text-white hover:bg-blue-600 shadow-blue-500/20'
                 }`}
               >
@@ -411,13 +411,13 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 Book appointment
               </button>
 
-              {/* Call & Directions Quick Buttons */}
+              {/* Call & Directions Quick Buttons (Dark Charcoal with Gold Text) */}
               <div className="grid grid-cols-2 gap-3">
                 <a
                   href="tel:+94701333485"
                   className={`py-3 px-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all border ${
                     isDark
-                      ? 'bg-zinc-900/90 border-zinc-800 text-amber-400 hover:bg-zinc-850'
+                      ? 'bg-[#18181b] border-zinc-800 text-[#e5a43b] hover:bg-zinc-800'
                       : 'bg-white border-zinc-200/80 text-[#0d6efd] hover:bg-blue-50/50 shadow-sm'
                   }`}
                 >
@@ -430,7 +430,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                   rel="noopener noreferrer"
                   className={`py-3 px-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all border ${
                     isDark
-                      ? 'bg-zinc-900/90 border-zinc-800 text-amber-400 hover:bg-zinc-850'
+                      ? 'bg-[#18181b] border-zinc-800 text-[#e5a43b] hover:bg-zinc-800'
                       : 'bg-white border-zinc-200/80 text-[#0d6efd] hover:bg-blue-50/50 shadow-sm'
                   }`}
                 >
@@ -439,19 +439,19 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 </a>
               </div>
 
-              {/* TODAY'S OFFER CARD (Claude's Home Mockup Colors) */}
+              {/* TODAY'S OFFER CARD (Claude's Dark Gold Home Mockup) */}
               <div 
                 onClick={() => handleSelectServiceAndAdvance(TODAYS_OFFER)}
                 className={`p-4 rounded-2xl border cursor-pointer active:scale-[0.99] transition-all ${
                   isDark
-                    ? 'bg-zinc-900/95 border-zinc-800 hover:border-zinc-700 shadow-sm'
+                    ? 'bg-[#18181b] border-zinc-800 hover:border-zinc-700 shadow-sm'
                     : 'bg-white border-zinc-200/90 hover:border-zinc-300 shadow-sm'
                 }`}
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <span className={`text-[11px] uppercase tracking-wider font-extrabold block mb-0.5 ${
-                      isDark ? 'text-amber-400' : 'text-[#c26100]'
+                      isDark ? 'text-[#e5a43b]' : 'text-[#c26100]'
                     }`}>
                       TODAY'S OFFER
                     </span>
@@ -482,7 +482,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                       setStep(1);
                       setActiveTab('book');
                     }}
-                    className={`text-xs font-bold hover:underline ${isDark ? 'text-amber-400' : 'text-[#0d6efd]'}`}
+                    className={`text-xs font-bold hover:underline ${isDark ? 'text-[#e5a43b]' : 'text-[#0d6efd]'}`}
                   >
                     See all
                   </button>
@@ -490,7 +490,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
 
                 <div className={`rounded-2xl border overflow-hidden divide-y ${
                   isDark 
-                    ? 'bg-zinc-900/90 border-zinc-800/80 divide-zinc-800/60' 
+                    ? 'bg-[#18181b] border-zinc-800 divide-zinc-800/70' 
                     : 'bg-white border-zinc-200/80 divide-zinc-100 shadow-sm'
                 }`}>
                   {popularServices.map(srv => (
@@ -498,7 +498,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                       key={srv.id}
                       onClick={() => handleSelectServiceAndAdvance(srv)}
                       className={`p-3.5 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
-                        isDark ? 'hover:bg-zinc-850' : 'hover:bg-zinc-50/80'
+                        isDark ? 'hover:bg-zinc-800/60' : 'hover:bg-zinc-50/80'
                       }`}
                     >
                       <div className="min-w-0 flex-1">
@@ -513,7 +513,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                         <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-zinc-900'}`}>
                           Rs. {srv.price.toLocaleString()}
                         </span>
-                        <ChevronRight className="w-4 h-4 text-zinc-400" />
+                        <ChevronRight className="w-4 h-4 text-zinc-500" />
                       </div>
                     </div>
                   ))}
@@ -551,7 +551,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                       }
                     }}
                     className={`flex items-center gap-1 font-semibold text-sm hover:underline -ml-1 ${
-                      isDark ? 'text-amber-400' : 'text-[#0d6efd]'
+                      isDark ? 'text-[#e5a43b]' : 'text-[#0d6efd]'
                     }`}
                   >
                     <ChevronLeft className="w-4 h-4 stroke-[2.2]" />
@@ -571,7 +571,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                         key={sNum}
                         className={`h-1.5 rounded-full transition-all duration-300 ${
                           sNum <= step
-                            ? (isDark ? 'bg-amber-500' : 'bg-[#0d6efd]')
+                            ? (isDark ? 'bg-[#e5a43b]' : 'bg-[#0d6efd]')
                             : (isDark ? 'bg-zinc-800' : 'bg-zinc-200')
                         }`}
                       />
@@ -602,10 +602,10 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                         className={`px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all ${
                           isSelected
                             ? (isDark 
-                                ? 'bg-amber-500 text-zinc-950 shadow-md shadow-amber-500/20' 
+                                ? 'bg-[#e5a43b] text-zinc-950 shadow-sm' 
                                 : 'bg-[#0d6efd] text-white shadow-sm')
                             : (isDark 
-                                ? 'bg-zinc-900 text-zinc-300 border border-zinc-800 hover:border-zinc-700' 
+                                ? 'bg-[#1c1c1e] text-zinc-300 border border-zinc-800/80 hover:border-zinc-700' 
                                 : 'bg-white text-zinc-700 border border-zinc-200/80 hover:border-zinc-300')
                         }`}
                       >
@@ -618,7 +618,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 {/* Compact Service Rows List */}
                 <div className={`rounded-2xl border overflow-hidden divide-y ${
                   isDark 
-                    ? 'bg-zinc-900/90 border-zinc-800/80 divide-zinc-800/60' 
+                    ? 'bg-[#18181b] border-zinc-800 divide-zinc-800/70' 
                     : 'bg-white border-zinc-200/80 divide-zinc-100 shadow-sm'
                 }`}>
                   {filteredServices.map(srv => {
@@ -629,14 +629,14 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                         onClick={() => setSelectedService(srv)}
                         className={`p-3.5 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
                           isSelected 
-                            ? (isDark ? 'bg-amber-500/10' : 'bg-blue-50/60') 
-                            : (isDark ? 'hover:bg-zinc-850' : 'hover:bg-zinc-50/80')
+                            ? (isDark ? 'bg-[#241c10]' : 'bg-blue-50/60') 
+                            : (isDark ? 'hover:bg-zinc-800/60' : 'hover:bg-zinc-50/80')
                         }`}
                       >
                         <div className="min-w-0 flex-1">
                           <h4 className={`font-bold text-sm sm:text-base leading-snug truncate ${
                             isSelected 
-                              ? (isDark ? 'text-amber-400' : 'text-[#0d6efd]') 
+                              ? (isDark ? 'text-white font-bold' : 'text-[#0d6efd]') 
                               : (isDark ? 'text-white' : 'text-zinc-900')
                           }`}>
                             {srv.name}
@@ -648,7 +648,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                             {srv.popular && (
                               <>
                                 <span className={isDark ? 'text-zinc-600' : 'text-zinc-300'}>·</span>
-                                <span className="font-bold text-amber-500">
+                                <span className={`font-bold ${isDark ? 'text-[#e5a43b]' : 'text-amber-600'}`}>
                                   Popular
                                 </span>
                               </>
@@ -664,8 +664,8 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                           {/* Radio Checkmark Circle */}
                           <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
                             isSelected
-                              ? (isDark ? 'bg-amber-500 text-zinc-950' : 'bg-[#0d6efd] text-white')
-                              : (isDark ? 'border-2 border-zinc-700' : 'border-2 border-zinc-300')
+                              ? (isDark ? 'bg-[#e5a43b] text-zinc-950 font-bold' : 'bg-[#0d6efd] text-white')
+                              : (isDark ? 'border-2 border-zinc-600' : 'border-2 border-zinc-300')
                           }`}>
                             {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                           </div>
@@ -705,7 +705,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                       }}
                       className={`w-full py-3.5 rounded-2xl font-bold text-base shadow-md active:scale-[0.98] transition-all ${
                         isDark
-                          ? 'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-zinc-950 shadow-amber-500/20'
+                          ? 'bg-[#e5a43b] hover:bg-[#d9982f] text-zinc-950 shadow-[#e5a43b]/15'
                           : 'bg-[#0d6efd] text-white hover:bg-blue-600 shadow-blue-500/20'
                       }`}
                     >
@@ -728,7 +728,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 {/* Stylist Selection List (Preserves rich avatars, ratings & roles in clean card group) */}
                 <div className={`rounded-2xl border overflow-hidden divide-y ${
                   isDark 
-                    ? 'bg-zinc-900/90 border-zinc-800/80 divide-zinc-800/60' 
+                    ? 'bg-[#18181b] border-zinc-800 divide-zinc-800/70' 
                     : 'bg-white border-zinc-200/80 divide-zinc-100 shadow-sm'
                 }`}>
                   
@@ -737,14 +737,14 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                     onClick={() => setSelectedStaff(null)}
                     className={`p-3.5 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
                       selectedStaff === null
-                        ? (isDark ? 'bg-amber-500/10' : 'bg-blue-50/60')
-                        : (isDark ? 'hover:bg-zinc-850' : 'hover:bg-zinc-50/80')
+                        ? (isDark ? 'bg-[#241c10]' : 'bg-blue-50/60')
+                        : (isDark ? 'hover:bg-zinc-800/60' : 'hover:bg-zinc-50/80')
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${
                         selectedStaff === null
-                          ? (isDark ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-100 text-[#0d6efd]')
+                          ? (isDark ? 'bg-[#2a2415] text-[#e5a43b] ring-1 ring-[#e5a43b]/40' : 'bg-blue-100 text-[#0d6efd]')
                           : (isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-zinc-100 text-zinc-500')
                       }`}>
                         <Sparkles className="w-5 h-5 stroke-[2.2]" />
@@ -752,21 +752,21 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                       <div className="min-w-0">
                         <h4 className={`font-bold text-sm sm:text-base leading-snug truncate ${
                           selectedStaff === null 
-                            ? (isDark ? 'text-amber-400' : 'text-[#0d6efd]') 
+                            ? (isDark ? 'text-white font-bold' : 'text-[#0d6efd]') 
                             : (isDark ? 'text-white' : 'text-zinc-900')
                         }`}>
                           Any available
                         </h4>
-                        <span className="text-xs text-emerald-500 font-semibold block">
-                          Fastest booking availability
+                        <span className={`text-xs block ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                          Fastest booking
                         </span>
                       </div>
                     </div>
 
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all ${
                       selectedStaff === null
-                        ? (isDark ? 'bg-amber-500 text-zinc-950' : 'bg-[#0d6efd] text-white')
-                        : (isDark ? 'border-2 border-zinc-700' : 'border-2 border-zinc-300')
+                        ? (isDark ? 'bg-[#e5a43b] text-zinc-950 font-bold' : 'bg-[#0d6efd] text-white')
+                        : (isDark ? 'border-2 border-zinc-600' : 'border-2 border-zinc-300')
                     }`}>
                       {selectedStaff === null && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                     </div>
@@ -781,20 +781,24 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                         onClick={() => setSelectedStaff(member)}
                         className={`p-3.5 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
                           isSelected
-                            ? (isDark ? 'bg-amber-500/10' : 'bg-blue-50/60')
-                            : (isDark ? 'hover:bg-zinc-850' : 'hover:bg-zinc-50/80')
+                            ? (isDark ? 'bg-[#241c10]' : 'bg-blue-50/60')
+                            : (isDark ? 'hover:bg-zinc-800/60' : 'hover:bg-zinc-50/80')
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <img
                             src={member.avatar}
                             alt={member.name}
-                            className="w-11 h-11 rounded-full object-cover ring-2 ring-zinc-200/80 shrink-0"
+                            className={`w-11 h-11 rounded-full object-cover shrink-0 transition-all ${
+                              isSelected
+                                ? (isDark ? 'ring-2 ring-[#e5a43b]' : 'ring-2 ring-[#0d6efd]')
+                                : (isDark ? 'ring-1 ring-zinc-700' : 'ring-2 ring-zinc-200/80')
+                            }`}
                           />
                           <div className="min-w-0">
                             <h4 className={`font-bold text-sm sm:text-base leading-snug truncate ${
                               isSelected 
-                                ? (isDark ? 'text-amber-400' : 'text-[#0d6efd]') 
+                                ? (isDark ? 'text-white font-bold' : 'text-[#0d6efd]') 
                                 : (isDark ? 'text-white' : 'text-zinc-900')
                             }`}>
                               {member.name}
@@ -804,8 +808,8 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                                 {member.role}
                               </span>
                               <span className={isDark ? 'text-zinc-600' : 'text-zinc-300'}>·</span>
-                              <div className="flex items-center gap-1 text-amber-500 font-bold shrink-0">
-                                <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                              <div className="flex items-center gap-1 font-bold shrink-0 text-[#e5a43b]">
+                                <Star className="w-3 h-3 fill-[#e5a43b] text-[#e5a43b]" />
                                 <span>{member.rating}</span>
                               </div>
                             </div>
@@ -814,8 +818,8 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
 
                         <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all ${
                           isSelected
-                            ? (isDark ? 'bg-amber-500 text-zinc-950' : 'bg-[#0d6efd] text-white')
-                            : (isDark ? 'border-2 border-zinc-700' : 'border-2 border-zinc-300')
+                            ? (isDark ? 'bg-[#e5a43b] text-zinc-950 font-bold' : 'bg-[#0d6efd] text-white')
+                            : (isDark ? 'border-2 border-zinc-600' : 'border-2 border-zinc-300')
                         }`}>
                           {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                         </div>
@@ -852,7 +856,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                       }}
                       className={`w-full py-3.5 rounded-2xl font-bold text-base shadow-md active:scale-[0.98] transition-all ${
                         isDark
-                          ? 'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-zinc-950 shadow-amber-500/20'
+                          ? 'bg-[#e5a43b] hover:bg-[#d9982f] text-zinc-950 shadow-[#e5a43b]/15'
                           : 'bg-[#0d6efd] text-white hover:bg-blue-600 shadow-blue-500/20'
                       }`}
                     >
@@ -874,7 +878,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
 
                 {/* Month & Year header */}
                 <div className="pt-0.5">
-                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 block px-0.5">
+                  <span className={`text-xs font-bold uppercase tracking-wider block px-0.5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
                     {selectedMonthYear}
                   </span>
                 </div>
@@ -888,24 +892,28 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                         key={d.iso}
                         type="button"
                         onClick={() => setSelectedDate(d.iso)}
-                        className={`flex flex-col items-center justify-center min-w-[50px] py-2.5 px-1.5 rounded-2xl transition-all ${
+                        className={`flex flex-col items-center justify-center min-w-[52px] py-2.5 px-2 rounded-2xl transition-all ${
                           isSelected
                             ? (isDark 
-                                ? 'bg-amber-500 text-zinc-950 font-bold shadow-md shadow-amber-500/20' 
+                                ? 'bg-[#e5a43b] text-zinc-950 font-bold shadow-sm' 
                                 : 'bg-[#0d6efd] text-white font-bold shadow-md shadow-blue-500/20')
                             : (isDark 
-                                ? 'bg-zinc-900 border border-zinc-800 text-zinc-200 hover:border-zinc-700' 
+                                ? 'bg-[#1c1c1e] border border-zinc-800/80 text-white hover:border-zinc-700' 
                                 : 'bg-white border border-zinc-200/80 text-zinc-800 shadow-sm hover:border-zinc-300')
                         }`}
                       >
                         <span className={`text-[11px] font-semibold ${
                           isSelected 
-                            ? (isDark ? 'text-zinc-950' : 'text-white') 
+                            ? (isDark ? 'text-zinc-950 font-bold' : 'text-white') 
                             : (isDark ? 'text-zinc-400' : 'text-zinc-600')
                         }`}>
                           {d.weekday}
                         </span>
-                        <span className="text-lg font-extrabold leading-tight mt-0.5">
+                        <span className={`text-lg font-extrabold leading-tight mt-0.5 ${
+                          isSelected 
+                            ? (isDark ? 'text-zinc-950' : 'text-white') 
+                            : (isDark ? 'text-white' : 'text-zinc-900')
+                        }`}>
                           {d.dayNum}
                         </span>
                       </button>
@@ -917,7 +925,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 <div className="space-y-4 pt-1">
                   {TIME_PERIODS.map(group => (
                     <div key={group.title} className="space-y-2">
-                      <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 block px-0.5">
+                      <span className={`text-xs font-bold uppercase tracking-wider block px-0.5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
                         {group.title}
                       </span>
 
@@ -935,10 +943,10 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                               onClick={() => setSelectedTimeSlot(slot)}
                               className={`py-3 px-2 rounded-2xl text-sm font-bold transition-all ${
                                 isBooked
-                                  ? (isDark ? 'bg-zinc-900/40 text-zinc-600 border border-zinc-800/40 line-through' : 'bg-zinc-100 text-zinc-400 border border-zinc-200 line-through')
+                                  ? (isDark ? 'bg-zinc-900/40 text-zinc-600 border border-zinc-800/40 line-through opacity-40 cursor-not-allowed' : 'bg-zinc-100 text-zinc-400 border border-zinc-200 line-through cursor-not-allowed')
                                   : isSelected
-                                  ? (isDark ? 'bg-amber-500 text-zinc-950 shadow-md shadow-amber-500/20 font-extrabold' : 'bg-[#0d6efd] text-white shadow-md shadow-blue-500/20 font-extrabold')
-                                  : (isDark ? 'bg-zinc-900 border border-zinc-800 text-zinc-200 hover:border-zinc-700' : 'bg-white border border-zinc-200/80 text-zinc-900 hover:border-zinc-300 shadow-sm')
+                                  ? (isDark ? 'bg-[#e5a43b] text-zinc-950 shadow-sm font-extrabold' : 'bg-[#0d6efd] text-white shadow-md shadow-blue-500/20 font-extrabold')
+                                  : (isDark ? 'bg-[#1c1c1e] border border-zinc-800/80 text-white hover:border-zinc-700' : 'bg-white border border-zinc-200/80 text-zinc-900 hover:border-zinc-300 shadow-sm')
                               }`}
                             >
                               {displayTime}
@@ -977,7 +985,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                       }}
                       className={`w-full py-3.5 rounded-2xl font-bold text-base shadow-md active:scale-[0.98] transition-all ${
                         isDark
-                          ? 'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-zinc-950 shadow-amber-500/20'
+                          ? 'bg-[#e5a43b] hover:bg-[#d9982f] text-zinc-950 shadow-[#e5a43b]/15'
                           : 'bg-[#0d6efd] text-white hover:bg-blue-600 shadow-blue-500/20'
                       }`}
                     >
@@ -1000,7 +1008,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 {/* Summary Table Card */}
                 <div className={`rounded-2xl border overflow-hidden divide-y ${
                   isDark 
-                    ? 'bg-zinc-900/90 border-zinc-800/80 divide-zinc-800/80' 
+                    ? 'bg-[#18181b] border-zinc-800 divide-zinc-800/70' 
                     : 'bg-white border-zinc-200/80 divide-zinc-100 shadow-sm'
                 }`}>
                   <div className="px-4 py-3.5 flex items-center justify-between gap-4">
@@ -1050,13 +1058,13 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
 
                 {/* YOUR DETAILS Input Card */}
                 <div className="pt-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 block px-1 mb-2">
+                  <span className={`text-xs font-bold uppercase tracking-wider block px-1 mb-2 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
                     YOUR DETAILS
                   </span>
 
                   <div className={`rounded-2xl border overflow-hidden divide-y ${
                     isDark 
-                      ? 'bg-zinc-900/90 border-zinc-800/80 divide-zinc-800/80' 
+                      ? 'bg-[#18181b] border-zinc-800 divide-zinc-800/70' 
                       : 'bg-white border-zinc-200/80 divide-zinc-100 shadow-sm'
                   }`}>
                     {/* Name Row */}
@@ -1072,7 +1080,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                         onChange={(e) => setCustomerName(e.target.value)}
                         className={`w-full text-right text-sm font-semibold bg-transparent outline-none transition-colors ${
                           isDark 
-                            ? 'text-white placeholder:text-zinc-600' 
+                            ? 'text-white placeholder:text-zinc-500' 
                             : 'text-zinc-900 placeholder:text-zinc-400'
                         }`}
                       />
@@ -1091,7 +1099,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                         onChange={(e) => setCustomerPhone(e.target.value)}
                         className={`w-full text-right text-sm font-semibold bg-transparent outline-none transition-colors ${
                           isDark 
-                            ? 'text-white placeholder:text-zinc-600' 
+                            ? 'text-white placeholder:text-zinc-500' 
                             : 'text-zinc-900 placeholder:text-zinc-400'
                         }`}
                       />
@@ -1109,7 +1117,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                         onChange={(e) => setNotes(e.target.value)}
                         className={`w-full text-right text-sm font-semibold bg-transparent outline-none transition-colors ${
                           isDark 
-                            ? 'text-white placeholder:text-zinc-600' 
+                            ? 'text-white placeholder:text-zinc-500' 
                             : 'text-zinc-900 placeholder:text-zinc-400'
                         }`}
                       />
@@ -1142,7 +1150,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                       onClick={handleConfirmBooking}
                       className={`w-full py-3.5 rounded-2xl font-bold text-base shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 ${
                         isDark
-                          ? 'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-zinc-950 shadow-amber-500/20'
+                          ? 'bg-[#e5a43b] hover:bg-[#d9982f] text-zinc-950 shadow-[#e5a43b]/15'
                           : 'bg-[#0d6efd] text-white hover:bg-blue-600 shadow-blue-500/20'
                       }`}
                     >
@@ -1173,11 +1181,11 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
 
                 {/* Digital Ticket Pass */}
                 <div className={`p-5 rounded-3xl border text-left space-y-3.5 shadow-xl ${
-                  isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200/80'
+                  isDark ? 'bg-[#18181b] border-zinc-800' : 'bg-white border-zinc-200/80'
                 }`}>
                   <div className="flex items-center justify-between pb-3 border-b border-zinc-200/70 dark:border-zinc-800">
                     <div>
-                      <span className="text-[10px] uppercase font-bold text-amber-500 block">
+                      <span className={`text-[10px] uppercase font-bold block ${isDark ? 'text-[#e5a43b]' : 'text-blue-600'}`}>
                         AQUINESS SALON PASS
                       </span>
                       <h4 className={`font-bold text-base ${isDark ? 'text-white' : 'text-zinc-900'}`}>
@@ -1208,7 +1216,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
 
                   <div className="pt-2 border-t border-zinc-200/70 dark:border-zinc-800 flex items-center justify-between">
                     <span className="text-xs text-zinc-400">Total (Pay at salon)</span>
-                    <span className={`text-base font-extrabold ${isDark ? 'text-amber-400' : 'text-zinc-900'}`}>
+                    <span className={`text-base font-extrabold ${isDark ? 'text-[#e5a43b]' : 'text-zinc-900'}`}>
                       Rs. {confirmedBooking.servicePrice.toLocaleString()}
                     </span>
                   </div>
@@ -1222,9 +1230,9 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                       setActiveTab('bookings');
                       setStep(1);
                     }}
-                    className={`w-full py-3.5 rounded-2xl font-bold text-sm ${
+                    className={`w-full py-3.5 rounded-2xl font-bold text-sm shadow-md transition-all ${
                       isDark
-                        ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-zinc-950'
+                        ? 'bg-[#e5a43b] hover:bg-[#d9982f] text-zinc-950 shadow-[#e5a43b]/15'
                         : 'bg-[#0d6efd] text-white hover:bg-blue-600'
                     }`}
                   >
@@ -1238,8 +1246,8 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                       setStep(1);
                       setActiveTab('home');
                     }}
-                    className={`w-full py-3 rounded-2xl font-bold text-sm border ${
-                      isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-300' : 'bg-white border-zinc-200 text-zinc-700'
+                    className={`w-full py-3 rounded-2xl font-bold text-sm border transition-colors ${
+                      isDark ? 'bg-[#18181b] border-zinc-800 text-zinc-300 hover:bg-zinc-800' : 'bg-white border-zinc-200 text-zinc-700'
                     }`}
                   >
                     Book Another Session
@@ -1278,7 +1286,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
             <main className="w-full flex-1 px-4 pt-4 pb-28 space-y-3">
               {myBookings.length === 0 ? (
                 <div className={`p-8 rounded-3xl border text-center space-y-3 mt-4 ${
-                  isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200/80 shadow-sm'
+                  isDark ? 'bg-[#18181b] border-zinc-800' : 'bg-white border-zinc-200/80 shadow-sm'
                 }`}>
                   <Ticket className="w-10 h-10 text-zinc-400 mx-auto" />
                   <h3 className={`font-bold text-base ${isDark ? 'text-white' : 'text-zinc-900'}`}>
@@ -1295,7 +1303,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                     }}
                     className={`py-3 px-6 rounded-2xl font-bold text-sm inline-block mt-2 ${
                       isDark
-                        ? 'bg-amber-500 text-zinc-950'
+                        ? 'bg-[#e5a43b] text-zinc-950 font-bold shadow-md shadow-[#e5a43b]/15'
                         : 'bg-[#0d6efd] text-white'
                     }`}
                   >
@@ -1312,7 +1320,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                       key={live.id}
                       onClick={() => setViewingPass(live)}
                       className={`p-4 rounded-2xl border cursor-pointer transition-all hover:scale-[1.01] ${
-                        isDark ? 'bg-zinc-900/90 border-zinc-800' : 'bg-white border-zinc-200/80 shadow-sm'
+                        isDark ? 'bg-[#18181b] border-zinc-800' : 'bg-white border-zinc-200/80 shadow-sm'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -1324,7 +1332,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                               ? 'bg-purple-500/15 text-purple-500'
                               : live.status === 'completed'
                               ? 'bg-blue-500/15 text-blue-500'
-                              : 'bg-amber-500/15 text-amber-500'
+                              : (isDark ? 'bg-[#e5a43b]/15 text-[#e5a43b]' : 'bg-amber-500/15 text-amber-600')
                           }`}>
                             {live.status.replace('_', ' ')}
                           </span>
@@ -1337,10 +1345,10 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                         </div>
 
                         <div className="text-right shrink-0">
-                          <span className={`font-extrabold text-sm block ${isDark ? 'text-amber-400' : 'text-zinc-900'}`}>
+                          <span className={`font-extrabold text-sm block ${isDark ? 'text-[#e5a43b]' : 'text-zinc-900'}`}>
                             Rs. {live.servicePrice.toLocaleString()}
                           </span>
-                          <span className={`text-[11px] font-bold mt-1 inline-flex items-center gap-0.5 ${isDark ? 'text-amber-400' : 'text-[#0d6efd]'}`}>
+                          <span className={`text-[11px] font-bold mt-1 inline-flex items-center gap-0.5 ${isDark ? 'text-[#e5a43b]' : 'text-[#0d6efd]'}`}>
                             <QrCode className="w-3.5 h-3.5" /> Pass
                           </span>
                         </div>
@@ -1381,14 +1389,14 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
               
               {/* Brand Card */}
               <div className={`p-4 rounded-3xl border flex items-center gap-3.5 ${
-                isDark ? 'bg-zinc-900/90 border-zinc-800' : 'bg-white border-zinc-200/80 shadow-sm'
+                isDark ? 'bg-[#18181b] border-zinc-800' : 'bg-white border-zinc-200/80 shadow-sm'
               }`}>
                 <div className="relative shrink-0">
-                  <div className="absolute -inset-1 rounded-full blur-sm opacity-80 bg-gradient-to-r from-amber-500 to-amber-600 pointer-events-none" />
+                  <div className="absolute -inset-1 rounded-full blur-sm opacity-80 bg-gradient-to-r from-[#e5a43b] to-[#d9982f] pointer-events-none" />
                   <img
                     src="/logo.png"
                     alt="Aquiness Barber"
-                    className="relative w-14 h-14 rounded-full object-cover ring-2 ring-amber-500 shrink-0"
+                    className="relative w-14 h-14 rounded-full object-cover ring-2 ring-[#e5a43b] shrink-0"
                   />
                 </div>
                 <div>
@@ -1398,8 +1406,8 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                   <p className={`text-xs ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
                     Premium Grooming Lounge · Pallewela
                   </p>
-                  <div className="flex items-center gap-1 text-xs text-amber-500 font-bold mt-1">
-                    <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                  <div className="flex items-center gap-1 text-xs text-[#e5a43b] font-bold mt-1">
+                    <Star className="w-3.5 h-3.5 fill-[#e5a43b] text-[#e5a43b]" />
                     <span>4.95 / 5.0</span>
                     <span className="text-zinc-400 font-normal">· 850+ Happy Clients</span>
                   </div>
@@ -1408,7 +1416,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
 
               {/* Theme Switcher Card */}
               <div className={`p-4 rounded-2xl border space-y-2 ${
-                isDark ? 'bg-zinc-900/90 border-zinc-800' : 'bg-white border-zinc-200/80 shadow-sm'
+                isDark ? 'bg-[#18181b] border-zinc-800' : 'bg-white border-zinc-200/80 shadow-sm'
               }`}>
                 <span className="text-xs font-bold uppercase tracking-wider text-zinc-400 block">
                   APPEARANCE
@@ -1421,7 +1429,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                       try { localStorage.setItem('aquiness_customer_theme', 'dark'); } catch {}
                     }}
                     className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                      isDark ? 'bg-zinc-900 text-amber-400 shadow-sm' : 'text-zinc-600'
+                      isDark ? 'bg-zinc-900 text-[#e5a43b] shadow-sm' : 'text-zinc-600'
                     }`}
                   >
                     <Moon className="w-3.5 h-3.5" />
@@ -1445,7 +1453,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
 
               {/* REAL OPERATING HOURS */}
               <div className={`p-4 rounded-2xl border space-y-2.5 ${
-                isDark ? 'bg-zinc-900/90 border-zinc-800' : 'bg-white border-zinc-200/80 shadow-sm'
+                isDark ? 'bg-[#18181b] border-zinc-800' : 'bg-white border-zinc-200/80 shadow-sm'
               }`}>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
@@ -1472,7 +1480,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                         key={item.day}
                         className={`flex items-center justify-between py-1 px-2 rounded-lg ${
                           isToday 
-                            ? (isDark ? 'bg-amber-500/10 text-amber-400 font-bold' : 'bg-blue-50 text-[#0d6efd] font-bold')
+                            ? (isDark ? 'bg-[#241c10] text-[#e5a43b] font-bold' : 'bg-blue-50 text-[#0d6efd] font-bold')
                             : (isDark ? 'text-zinc-300' : 'text-zinc-700')
                         }`}
                       >
@@ -1489,7 +1497,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
 
               {/* LOCATION & CONTACT */}
               <div className={`p-4 rounded-2xl border space-y-2.5 ${
-                isDark ? 'bg-zinc-900/90 border-zinc-800' : 'bg-white border-zinc-200/80 shadow-sm'
+                isDark ? 'bg-[#18181b] border-zinc-800' : 'bg-white border-zinc-200/80 shadow-sm'
               }`}>
                 <span className="text-xs font-bold uppercase tracking-wider text-zinc-400 block">
                   LOCATION & CONTACT
@@ -1502,7 +1510,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                     rel="noopener noreferrer"
                     className="flex items-center gap-2.5 text-zinc-400 hover:underline"
                   >
-                    <MapPin className="w-4 h-4 text-amber-500 shrink-0" />
+                    <MapPin className="w-4 h-4 text-[#e5a43b] shrink-0" />
                     <span className={isDark ? 'text-zinc-200' : 'text-zinc-800'}>
                       Salon Aquiness, Kuliyapitiya Madampe Road, Pallewela
                     </span>
@@ -1563,7 +1571,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 onClick={() => setActiveTab('home')}
                 className={`flex flex-col items-center justify-center py-1 rounded-xl transition-colors ${
                   activeTab === 'home'
-                    ? (isDark ? 'text-amber-400' : 'text-[#0d6efd]')
+                    ? (isDark ? 'text-[#e5a43b]' : 'text-[#0d6efd]')
                     : (isDark ? 'text-zinc-500 hover:text-zinc-300' : 'text-zinc-500 hover:text-zinc-800')
                 }`}
               >
@@ -1582,7 +1590,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 }}
                 className={`flex flex-col items-center justify-center py-1 rounded-xl transition-colors ${
                   activeTab === 'book'
-                    ? (isDark ? 'text-amber-400' : 'text-[#0d6efd]')
+                    ? (isDark ? 'text-[#e5a43b]' : 'text-[#0d6efd]')
                     : (isDark ? 'text-zinc-500 hover:text-zinc-300' : 'text-zinc-500 hover:text-zinc-800')
                 }`}
               >
@@ -1598,7 +1606,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 onClick={() => setActiveTab('bookings')}
                 className={`flex flex-col items-center justify-center py-1 rounded-xl transition-colors relative ${
                   activeTab === 'bookings'
-                    ? (isDark ? 'text-amber-400' : 'text-[#0d6efd]')
+                    ? (isDark ? 'text-[#e5a43b]' : 'text-[#0d6efd]')
                     : (isDark ? 'text-zinc-500 hover:text-zinc-300' : 'text-zinc-500 hover:text-zinc-800')
                 }`}
               >
@@ -1607,7 +1615,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                   Bookings
                 </span>
                 {myBookings.length > 0 && (
-                  <span className={`absolute top-1 right-5 w-2 h-2 rounded-full ${isDark ? 'bg-amber-500' : 'bg-[#0d6efd]'}`} />
+                  <span className={`absolute top-1 right-5 w-2 h-2 rounded-full ${isDark ? 'bg-[#e5a43b]' : 'bg-[#0d6efd]'}`} />
                 )}
               </button>
 
@@ -1617,7 +1625,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 onClick={() => setActiveTab('info')}
                 className={`flex flex-col items-center justify-center py-1 rounded-xl transition-colors ${
                   activeTab === 'info'
-                    ? (isDark ? 'text-amber-400' : 'text-[#0d6efd]')
+                    ? (isDark ? 'text-[#e5a43b]' : 'text-[#0d6efd]')
                     : (isDark ? 'text-zinc-500 hover:text-zinc-300' : 'text-zinc-500 hover:text-zinc-800')
                 }`}
               >
@@ -1637,11 +1645,11 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
             <div 
               style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 20px)' }}
               className={`w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-5 space-y-4 shadow-2xl ${
-                isDark ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-900'
+                isDark ? 'bg-[#18181b] text-white border border-zinc-800' : 'bg-white text-zinc-900'
               }`}
             >
               <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
-                <span className="text-xs uppercase font-extrabold text-amber-500">
+                <span className={`text-xs uppercase font-extrabold ${isDark ? 'text-[#e5a43b]' : 'text-blue-600'}`}>
                   APPOINTMENT PASS
                 </span>
                 <span className="text-xs font-bold text-zinc-400">
@@ -1650,7 +1658,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
               </div>
 
               <div className="text-center py-2 space-y-1">
-                <QrCode className={`w-24 h-24 mx-auto ${isDark ? 'text-amber-400' : 'text-[#0d6efd]'}`} />
+                <QrCode className={`w-24 h-24 mx-auto ${isDark ? 'text-[#e5a43b]' : 'text-[#0d6efd]'}`} />
                 <p className="text-xs text-zinc-400">Present this QR upon arrival at salon</p>
               </div>
 
@@ -1673,7 +1681,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 </div>
                 <div className="flex justify-between pt-1">
                   <span className="text-zinc-400">Total</span>
-                  <span className="font-extrabold text-sm text-amber-500">Rs. {viewingPass.servicePrice.toLocaleString()}</span>
+                  <span className={`font-extrabold text-sm ${isDark ? 'text-[#e5a43b]' : 'text-zinc-900'}`}>Rs. {viewingPass.servicePrice.toLocaleString()}</span>
                 </div>
               </div>
 
@@ -1681,7 +1689,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 type="button"
                 onClick={() => setViewingPass(null)}
                 className={`w-full py-3 rounded-xl font-bold text-sm ${
-                  isDark ? 'bg-zinc-800 text-white' : 'bg-zinc-100 text-zinc-800'
+                  isDark ? 'bg-zinc-800 text-white hover:bg-zinc-700' : 'bg-zinc-100 text-zinc-800'
                 }`}
               >
                 Close Pass
