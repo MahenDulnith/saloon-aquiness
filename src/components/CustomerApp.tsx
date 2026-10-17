@@ -51,6 +51,27 @@ function getSalonStatus() {
   };
 }
 
+// Structured time slots categorized into Morning, Afternoon, Evening
+const TIME_PERIODS: { title: string; slots: string[] }[] = [
+  {
+    title: 'MORNING',
+    slots: ['09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM']
+  },
+  {
+    title: 'AFTERNOON',
+    slots: ['12:00 PM', '12:30 PM', '01:00 PM', '01:30 PM', '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM']
+  },
+  {
+    title: 'EVENING',
+    slots: ['05:00 PM', '05:30 PM', '06:00 PM', '06:30 PM', '07:00 PM', '07:30 PM', '08:00 PM', '08:30 PM']
+  }
+];
+
+function formatSlotDisplay(slot: string): string {
+  // Strip leading 0 and AM/PM: "09:00 AM" -> "9:00", "02:30 PM" -> "2:30", "10:30 AM" -> "10:30"
+  return slot.replace(/^0/, '').replace(/ (AM|PM)/, '');
+}
+
 export const CustomerApp: React.FC<CustomerAppProps> = ({
   services,
   staff,
@@ -151,6 +172,25 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
     }
     return dates;
   }, []);
+
+  // Selected date month & year uppercase, e.g. "OCTOBER 2026"
+  const selectedMonthYear = useMemo(() => {
+    if (!selectedDate) return '';
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    return dateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
+  }, [selectedDate]);
+
+  // Formatted date string, e.g. "Mon, 19 Oct"
+  const formattedSelectedDate = useMemo(() => {
+    if (!selectedDate) return '';
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    const weekday = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+    const day = dateObj.getDate();
+    const month = dateObj.toLocaleDateString('en-US', { month: 'short' });
+    return `${weekday}, ${day} ${month}`;
+  }, [selectedDate]);
 
   // Categories list
   const categories: (ServiceCategory | 'All')[] = [
@@ -374,7 +414,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
               {/* Call & Directions Quick Buttons */}
               <div className="grid grid-cols-2 gap-3">
                 <a
-                  href="tel:+94771234567"
+                  href="tel:+94701333485"
                   className={`py-3 px-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all border ${
                     isDark
                       ? 'bg-zinc-900/90 border-zinc-800 text-amber-400 hover:bg-zinc-850'
@@ -385,7 +425,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                   Call
                 </a>
                 <a
-                  href="https://maps.google.com/?q=Aquiness+Barber+Pallewela+Kuliyapitiya"
+                  href="https://maps.app.goo.gl/XsE4HhDeuy9DzFe67"
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`py-3 px-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all border ${
@@ -516,7 +556,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                     }`}
                   >
                     <ChevronLeft className="w-4 h-4 stroke-[2.2]" />
-                    {step === 1 ? 'Home' : step === 2 ? 'Services' : step === 3 ? 'Specialist' : 'Schedule'}
+                    {step === 1 ? 'Home' : step === 2 ? 'Services' : step === 3 ? 'Stylist' : 'Date & time'}
                   </button>
 
                   <span className={`text-xs font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
@@ -775,29 +815,31 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 <div 
                   style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)' }}
                   className={`fixed bottom-0 left-0 right-0 z-40 border-t backdrop-blur-xl ${
-                    isDark ? 'bg-zinc-950/95 border-zinc-800' : 'bg-white/95 border-zinc-200/90 shadow-lg'
+                    isDark 
+                      ? 'bg-zinc-950/95 border-zinc-800 shadow-[0_-4px_20px_rgba(0,0,0,0.5)]' 
+                      : 'bg-white/95 border-zinc-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]'
                   }`}
                 >
-                  <div className="max-w-md mx-auto px-4 pt-3 pb-2 flex gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setStep(1)}
-                      className={`py-3.5 px-5 rounded-2xl font-bold text-sm border ${
-                        isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'
-                      }`}
-                    >
-                      Back
-                    </button>
+                  <div className="max-w-md mx-auto px-4 pt-3 pb-2 space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className={isDark ? 'text-zinc-400' : 'text-zinc-500 font-medium'}>
+                        {selectedStaff ? selectedStaff.name : 'Any available specialist'}
+                      </span>
+                      <span className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-zinc-900'}`}>
+                        Rs. {(selectedService?.price || 2500).toLocaleString()}
+                      </span>
+                    </div>
+
                     <button
                       type="button"
                       onClick={() => {
                         setStep(3);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
-                      className={`flex-1 py-3.5 rounded-2xl font-bold text-base shadow-md active:scale-[0.98] transition-all ${
+                      className={`w-full py-3.5 rounded-2xl font-bold text-base shadow-md active:scale-[0.98] transition-all ${
                         isDark
-                          ? 'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-zinc-950'
-                          : 'bg-[#0d6efd] text-white hover:bg-blue-600'
+                          ? 'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-zinc-950 shadow-amber-500/20'
+                          : 'bg-[#0d6efd] text-white hover:bg-blue-600 shadow-blue-500/20'
                       }`}
                     >
                       Continue
@@ -808,19 +850,22 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
               </main>
             )}
 
-            {/* STEP 3: CHOOSE DATE & TIME */}
+            {/* STEP 3: CHOOSE DATE & TIME (Claude's Left Mockup) */}
             {step === 3 && (
               <main className="w-full flex-1 px-4 pt-4 pb-36 space-y-4">
-                <div>
-                  <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-zinc-900'}`}>
-                    Select date & time
-                  </h1>
-                  <p className={`text-xs sm:text-sm mt-0.5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                    Choose appointment day and preferred salon slot
-                  </p>
+                {/* Main Heading */}
+                <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-zinc-900'}`}>
+                  Date & time
+                </h1>
+
+                {/* Month & Year header */}
+                <div className="pt-0.5">
+                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 block px-0.5">
+                    {selectedMonthYear}
+                  </span>
                 </div>
 
-                {/* Date Picker Pills */}
+                {/* Horizontal Date Pills */}
                 <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar -mx-4 px-4">
                   {dateOptions.map(d => {
                     const isSelected = selectedDate === d.iso;
@@ -829,85 +874,97 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                         key={d.iso}
                         type="button"
                         onClick={() => setSelectedDate(d.iso)}
-                        className={`flex flex-col items-center justify-center min-w-[56px] py-2 px-1 rounded-2xl border transition-all ${
+                        className={`flex flex-col items-center justify-center min-w-[50px] py-2.5 px-1.5 rounded-2xl transition-all ${
                           isSelected
                             ? (isDark 
-                                ? 'bg-amber-500 text-zinc-950 font-bold border-amber-500 shadow-md' 
-                                : 'bg-[#0d6efd] text-white font-bold border-[#0d6efd] shadow-md')
+                                ? 'bg-amber-500 text-zinc-950 font-bold shadow-md shadow-amber-500/20' 
+                                : 'bg-[#0d6efd] text-white font-bold shadow-md shadow-blue-500/20')
                             : (isDark 
-                                ? 'bg-zinc-900 border-zinc-800 text-zinc-300' 
-                                : 'bg-white border-zinc-200/80 text-zinc-700 shadow-sm')
+                                ? 'bg-zinc-900 border border-zinc-800 text-zinc-200 hover:border-zinc-700' 
+                                : 'bg-white border border-zinc-200/80 text-zinc-800 shadow-sm hover:border-zinc-300')
                         }`}
                       >
-                        <span className="text-[10px] uppercase font-semibold">{d.weekday}</span>
-                        <span className="text-lg font-bold leading-tight">{d.dayNum}</span>
-                        <span className="text-[10px] opacity-75">{d.month}</span>
+                        <span className={`text-[11px] font-semibold ${
+                          isSelected 
+                            ? (isDark ? 'text-zinc-950' : 'text-white') 
+                            : (isDark ? 'text-zinc-400' : 'text-zinc-600')
+                        }`}>
+                          {d.weekday}
+                        </span>
+                        <span className="text-lg font-extrabold leading-tight mt-0.5">
+                          {d.dayNum}
+                        </span>
                       </button>
                     );
                   })}
                 </div>
 
-                {/* Time Slots Grid */}
-                <div>
-                  <label className={`text-xs font-bold uppercase tracking-wider block mb-2 px-1 ${
-                    isDark ? 'text-zinc-400' : 'text-zinc-500'
-                  }`}>
-                    Available Slots
-                  </label>
+                {/* TIME PERIODS (MORNING / AFTERNOON / EVENING) */}
+                <div className="space-y-4 pt-1">
+                  {TIME_PERIODS.map(group => (
+                    <div key={group.title} className="space-y-2">
+                      <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 block px-0.5">
+                        {group.title}
+                      </span>
 
-                  <div className="grid grid-cols-3 gap-2">
-                    {TIME_SLOTS.map(slot => {
-                      const isBooked = bookedSlots.includes(slot);
-                      const isSelected = selectedTimeSlot === slot;
+                      <div className="grid grid-cols-3 gap-2.5">
+                        {group.slots.map(slot => {
+                          const isBooked = bookedSlots.includes(slot);
+                          const isSelected = selectedTimeSlot === slot;
+                          const displayTime = formatSlotDisplay(slot);
 
-                      return (
-                        <button
-                          key={slot}
-                          type="button"
-                          disabled={isBooked}
-                          onClick={() => setSelectedTimeSlot(slot)}
-                          className={`py-2.5 px-1 rounded-xl text-xs font-bold border transition-all ${
-                            isBooked
-                              ? (isDark ? 'bg-zinc-900/40 text-zinc-600 border-zinc-800/40 line-through' : 'bg-zinc-100 text-zinc-400 border-zinc-200 line-through')
-                              : isSelected
-                              ? (isDark ? 'bg-amber-500 text-zinc-950 border-amber-500 shadow-sm' : 'bg-[#0d6efd] text-white border-[#0d6efd] shadow-sm')
-                              : (isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-200 hover:border-zinc-700' : 'bg-white border-zinc-200/80 text-zinc-800 hover:border-zinc-300 shadow-sm')
-                          }`}
-                        >
-                          {slot}
-                        </button>
-                      );
-                    })}
-                  </div>
+                          return (
+                            <button
+                              key={slot}
+                              type="button"
+                              disabled={isBooked}
+                              onClick={() => setSelectedTimeSlot(slot)}
+                              className={`py-3 px-2 rounded-2xl text-sm font-bold transition-all ${
+                                isBooked
+                                  ? (isDark ? 'bg-zinc-900/40 text-zinc-600 border border-zinc-800/40 line-through' : 'bg-zinc-100 text-zinc-400 border border-zinc-200 line-through')
+                                  : isSelected
+                                  ? (isDark ? 'bg-amber-500 text-zinc-950 shadow-md shadow-amber-500/20 font-extrabold' : 'bg-[#0d6efd] text-white shadow-md shadow-blue-500/20 font-extrabold')
+                                  : (isDark ? 'bg-zinc-900 border border-zinc-800 text-zinc-200 hover:border-zinc-700' : 'bg-white border border-zinc-200/80 text-zinc-900 hover:border-zinc-300 shadow-sm')
+                              }`}
+                            >
+                              {displayTime}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
-                {/* STICKY BOTTOM BAR */}
+                {/* STICKY BOTTOM BAR (Date & Time) */}
                 <div 
                   style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)' }}
                   className={`fixed bottom-0 left-0 right-0 z-40 border-t backdrop-blur-xl ${
-                    isDark ? 'bg-zinc-950/95 border-zinc-800' : 'bg-white/95 border-zinc-200/90 shadow-lg'
+                    isDark 
+                      ? 'bg-zinc-950/95 border-zinc-800 shadow-[0_-4px_20px_rgba(0,0,0,0.5)]' 
+                      : 'bg-white/95 border-zinc-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]'
                   }`}
                 >
-                  <div className="max-w-md mx-auto px-4 pt-3 pb-2 flex gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setStep(2)}
-                      className={`py-3.5 px-5 rounded-2xl font-bold text-sm border ${
-                        isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'
-                      }`}
-                    >
-                      Back
-                    </button>
+                  <div className="max-w-md mx-auto px-4 pt-3 pb-2 space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className={isDark ? 'text-zinc-400' : 'text-zinc-500 font-medium'}>
+                        {formattedSelectedDate} · {selectedTimeSlot}
+                      </span>
+                      <span className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-zinc-900'}`}>
+                        Rs. {(selectedService?.price || 2500).toLocaleString()}
+                      </span>
+                    </div>
+
                     <button
                       type="button"
                       onClick={() => {
                         setStep(4);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
-                      className={`flex-1 py-3.5 rounded-2xl font-bold text-base shadow-md active:scale-[0.98] transition-all ${
+                      className={`w-full py-3.5 rounded-2xl font-bold text-base shadow-md active:scale-[0.98] transition-all ${
                         isDark
-                          ? 'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-zinc-950'
-                          : 'bg-[#0d6efd] text-white hover:bg-blue-600'
+                          ? 'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-zinc-950 shadow-amber-500/20'
+                          : 'bg-[#0d6efd] text-white hover:bg-blue-600 shadow-blue-500/20'
                       }`}
                     >
                       Continue
@@ -918,133 +975,164 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
               </main>
             )}
 
-            {/* STEP 4: CLIENT DETAILS & CONFIRM */}
+            {/* STEP 4: REVIEW & CONFIRM (Claude's Right Mockup) */}
             {step === 4 && (
               <main className="w-full flex-1 px-4 pt-4 pb-36 space-y-4">
-                <div>
-                  <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-zinc-900'}`}>
-                    Your details
-                  </h1>
-                  <p className={`text-xs sm:text-sm mt-0.5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                    Review your booking and enter contact details
-                  </p>
-                </div>
+                {/* Main Heading */}
+                <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-zinc-900'}`}>
+                  Review & confirm
+                </h1>
 
-                {/* Booking Summary Recap Card */}
-                <div className={`p-4 rounded-2xl border space-y-2.5 ${
-                  isDark ? 'bg-zinc-900/90 border-zinc-800' : 'bg-white border-zinc-200/80 shadow-sm'
+                {/* Summary Table Card */}
+                <div className={`rounded-2xl border overflow-hidden divide-y ${
+                  isDark 
+                    ? 'bg-zinc-900/90 border-zinc-800/80 divide-zinc-800/80' 
+                    : 'bg-white border-zinc-200/80 divide-zinc-100 shadow-sm'
                 }`}>
-                  <div className="flex items-center justify-between pb-2 border-b border-zinc-200/60 dark:border-zinc-800">
-                    <div>
-                      <h4 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-zinc-900'}`}>
-                        {selectedService?.name}
-                      </h4>
-                      <p className={`text-xs ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                        {selectedStaff ? selectedStaff.name : 'Any Specialist'} · {selectedService?.durationMinutes} min
-                      </p>
-                    </div>
-                    <span className={`font-extrabold text-base ${isDark ? 'text-amber-400' : 'text-zinc-900'}`}>
-                      Rs. {selectedService?.price.toLocaleString()}
+                  <div className="px-4 py-3.5 flex items-center justify-between gap-4">
+                    <span className={`text-sm ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                      Service
+                    </span>
+                    <span className={`text-sm font-bold text-right truncate ${isDark ? 'text-white' : 'text-zinc-900'}`}>
+                      {selectedService?.name}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                    <Clock className="w-4 h-4" />
-                    <span>{selectedDate} at {selectedTimeSlot}</span>
+                  <div className="px-4 py-3.5 flex items-center justify-between gap-4">
+                    <span className={`text-sm ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                      Stylist
+                    </span>
+                    <span className={`text-sm font-bold text-right ${isDark ? 'text-white' : 'text-zinc-900'}`}>
+                      {selectedStaff ? selectedStaff.name : 'Any available'}
+                    </span>
+                  </div>
+
+                  <div className="px-4 py-3.5 flex items-center justify-between gap-4">
+                    <span className={`text-sm ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                      Date
+                    </span>
+                    <span className={`text-sm font-bold text-right ${isDark ? 'text-white' : 'text-zinc-900'}`}>
+                      {formattedSelectedDate}
+                    </span>
+                  </div>
+
+                  <div className="px-4 py-3.5 flex items-center justify-between gap-4">
+                    <span className={`text-sm ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                      Time
+                    </span>
+                    <span className={`text-sm font-bold text-right ${isDark ? 'text-white' : 'text-zinc-900'}`}>
+                      {selectedTimeSlot} · {selectedService?.durationMinutes} min
+                    </span>
                   </div>
                 </div>
 
-                {/* Form Inputs */}
-                <form onSubmit={handleConfirmBooking} className="space-y-3">
-                  {formError && (
-                    <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-xs font-bold flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
-                      <span>{formError}</span>
+                {/* Validation Error Message */}
+                {formError && (
+                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-xs font-bold flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{formError}</span>
+                  </div>
+                )}
+
+                {/* YOUR DETAILS Input Card */}
+                <div className="pt-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 block px-1 mb-2">
+                    YOUR DETAILS
+                  </span>
+
+                  <div className={`rounded-2xl border overflow-hidden divide-y ${
+                    isDark 
+                      ? 'bg-zinc-900/90 border-zinc-800/80 divide-zinc-800/80' 
+                      : 'bg-white border-zinc-200/80 divide-zinc-100 shadow-sm'
+                  }`}>
+                    {/* Name Row */}
+                    <div className="px-4 py-3.5 flex items-center justify-between gap-3">
+                      <label className={`text-sm font-semibold shrink-0 ${isDark ? 'text-white' : 'text-zinc-900'}`}>
+                        Name
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Required"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        className={`w-full text-right text-sm font-semibold bg-transparent outline-none transition-colors ${
+                          isDark 
+                            ? 'text-white placeholder:text-zinc-600' 
+                            : 'text-zinc-900 placeholder:text-zinc-400'
+                        }`}
+                      />
                     </div>
-                  )}
 
-                  <div>
-                    <label className={`text-xs font-bold block mb-1 px-1 ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
-                      Full Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Kasun Perera"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      className={`w-full p-3.5 rounded-xl text-sm font-semibold border outline-none transition-colors ${
-                        isDark 
-                          ? 'bg-zinc-900 border-zinc-800 text-white focus:border-amber-500' 
-                          : 'bg-white border-zinc-200/90 text-zinc-900 focus:border-[#0d6efd]'
-                      }`}
-                    />
+                    {/* Phone Row */}
+                    <div className="px-4 py-3.5 flex items-center justify-between gap-3">
+                      <label className={`text-sm font-semibold shrink-0 ${isDark ? 'text-white' : 'text-zinc-900'}`}>
+                        Phone
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="07x xxx xxxx"
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value)}
+                        className={`w-full text-right text-sm font-semibold bg-transparent outline-none transition-colors ${
+                          isDark 
+                            ? 'text-white placeholder:text-zinc-600' 
+                            : 'text-zinc-900 placeholder:text-zinc-400'
+                        }`}
+                      />
+                    </div>
+
+                    {/* Optional Notes Row */}
+                    <div className="px-4 py-3.5 flex items-center justify-between gap-3">
+                      <label className={`text-sm font-semibold shrink-0 ${isDark ? 'text-white' : 'text-zinc-900'}`}>
+                        Notes
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Optional request"
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        className={`w-full text-right text-sm font-semibold bg-transparent outline-none transition-colors ${
+                          isDark 
+                            ? 'text-white placeholder:text-zinc-600' 
+                            : 'text-zinc-900 placeholder:text-zinc-400'
+                        }`}
+                      />
+                    </div>
                   </div>
+                </div>
 
-                  <div>
-                    <label className={`text-xs font-bold block mb-1 px-1 ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
-                      Phone Number *
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="077 123 4567"
-                      value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                      className={`w-full p-3.5 rounded-xl text-sm font-semibold border outline-none transition-colors ${
-                        isDark 
-                          ? 'bg-zinc-900 border-zinc-800 text-white focus:border-amber-500' 
-                          : 'bg-white border-zinc-200/90 text-zinc-900 focus:border-[#0d6efd]'
-                      }`}
-                    />
-                  </div>
-
-                  <div>
-                    <label className={`text-xs font-bold block mb-1 px-1 ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
-                      Special Request or Note (optional)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Low skin fade, extra hot towel"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      className={`w-full p-3.5 rounded-xl text-sm font-semibold border outline-none transition-colors ${
-                        isDark 
-                          ? 'bg-zinc-900 border-zinc-800 text-white focus:border-amber-500' 
-                          : 'bg-white border-zinc-200/90 text-zinc-900 focus:border-[#0d6efd]'
-                      }`}
-                    />
-                  </div>
-                </form>
-
-                {/* STICKY BOTTOM CONFIRM BUTTON */}
+                {/* STICKY BOTTOM CONFIRM BAR */}
                 <div 
                   style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)' }}
                   className={`fixed bottom-0 left-0 right-0 z-40 border-t backdrop-blur-xl ${
-                    isDark ? 'bg-zinc-950/95 border-zinc-800' : 'bg-white/95 border-zinc-200/90 shadow-lg'
+                    isDark 
+                      ? 'bg-zinc-950/95 border-zinc-800 shadow-[0_-4px_20px_rgba(0,0,0,0.5)]' 
+                      : 'bg-white/95 border-zinc-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]'
                   }`}
                 >
-                  <div className="max-w-md mx-auto px-4 pt-3 pb-2 flex gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setStep(3)}
-                      className={`py-3.5 px-5 rounded-2xl font-bold text-sm border ${
-                        isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'
-                      }`}
-                    >
-                      Back
-                    </button>
+                  <div className="max-w-md mx-auto px-4 pt-3 pb-2 space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className={isDark ? 'text-zinc-400' : 'text-zinc-500 font-medium'}>
+                        Total
+                      </span>
+                      <span className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-zinc-900'}`}>
+                        Rs. {(selectedService?.price || 2500).toLocaleString()}
+                      </span>
+                    </div>
+
                     <button
                       type="button"
                       disabled={isSubmitting}
                       onClick={handleConfirmBooking}
-                      className={`flex-1 py-3.5 rounded-2xl font-bold text-base shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 ${
+                      className={`w-full py-3.5 rounded-2xl font-bold text-base shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 ${
                         isDark
-                          ? 'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-zinc-950'
-                          : 'bg-[#0d6efd] text-white hover:bg-blue-600'
+                          ? 'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-zinc-950 shadow-amber-500/20'
+                          : 'bg-[#0d6efd] text-white hover:bg-blue-600 shadow-blue-500/20'
                       }`}
                     >
-                      {isSubmitting ? 'Confirming...' : 'Confirm Appointment'}
+                      {isSubmitting ? 'Confirming...' : 'Confirm booking'}
                     </button>
                   </div>
                 </div>
@@ -1395,24 +1483,24 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 
                 <div className="space-y-2 text-xs">
                   <a
-                    href="https://maps.google.com/?q=Aquiness+Barber+Pallewela+Kuliyapitiya"
+                    href="https://maps.app.goo.gl/XsE4HhDeuy9DzFe67"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-2.5 text-zinc-400 hover:underline"
                   >
                     <MapPin className="w-4 h-4 text-amber-500 shrink-0" />
                     <span className={isDark ? 'text-zinc-200' : 'text-zinc-800'}>
-                      Main Street, Pallewela, Kuliyapitiya, Sri Lanka
+                      Salon Aquiness, Kuliyapitiya Madampe Road, Pallewela
                     </span>
                   </a>
 
                   <a
-                    href="tel:+94771234567"
+                    href="tel:+94701333485"
                     className="flex items-center gap-2.5 text-zinc-400 hover:underline"
                   >
                     <Phone className="w-4 h-4 text-emerald-500 shrink-0" />
                     <span className={isDark ? 'text-zinc-200' : 'text-zinc-800'}>
-                      +94 77 123 4567
+                      070 133 3485
                     </span>
                   </a>
                 </div>
