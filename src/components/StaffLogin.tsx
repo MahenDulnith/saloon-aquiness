@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Delete, Mail, KeyRound, Eye, EyeOff, AlertCircle, Sun, Moon } from 'lucide-react';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from '../firebase/config';
@@ -48,6 +48,8 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
 
   // PIN state
   const [pin, setPin] = useState<string>('');
+  const pinRef = useRef<string>('');
+  pinRef.current = pin;
   const [pinError, setPinError] = useState<string>('');
 
   // Brute-force protection: Lockout and email alert on 3+ failed attempts
@@ -158,6 +160,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
         setLockoutTimer(30);
         setPinError('Too many failed attempts (3). Keypad locked for 30s. Security alert sent to Didula.');
         setPin('');
+        pinRef.current = '';
       } else {
         FirebaseService.sendStaffLoginAlert(
           `Failed PIN entered for ${currentSelectedMember.name} (Attempt ${newFailCount}/3)`
@@ -166,6 +169,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
         setPinError(`Incorrect PIN. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`);
         setTimeout(() => {
           setPin('');
+          pinRef.current = '';
           if (!isLockedOut) setPinError('');
         }, 900);
       }
@@ -174,21 +178,27 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
 
   const handleNumberPress = (digit: string) => {
     if (isLockedOut) return;
-    if (pin.length < 4) {
-      const newPin = pin + digit;
-      setPin(newPin);
-      setPinError('');
-      if (newPin.length === 4) {
+    setPin(prev => {
+      if (prev.length >= 4) return prev;
+      const next = prev + digit;
+      pinRef.current = next;
+      if (next.length === 4) {
         setTimeout(() => {
-          verifyPin(newPin);
-        }, 150);
+          verifyPin(next);
+        }, 80);
       }
-    }
+      return next;
+    });
+    setPinError('');
   };
 
   const handleBackspace = () => {
     if (isLockedOut) return;
-    setPin(prev => prev.slice(0, -1));
+    setPin(prev => {
+      const next = prev.slice(0, -1);
+      pinRef.current = next;
+      return next;
+    });
     setPinError('');
   };
 
@@ -299,7 +309,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
   const activeStaffMembers = staffList.length > 0 ? staffList : [currentSelectedMember];
 
   return (
-    <div className={`fixed inset-0 z-50 overflow-y-auto flex flex-col items-center justify-between transition-colors duration-300 select-none ${
+    <div className={`fixed inset-0 z-50 overflow-y-auto ${authMode === 'pin' ? 'overscroll-none' : ''} flex flex-col items-center justify-between transition-colors duration-300 select-none ${
       isDark ? 'bg-zinc-950 text-zinc-100' : 'bg-[#f0f2f6] text-zinc-900'
     }`}>
       
@@ -370,7 +380,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
           }`}>
             <button
               type="button"
-              onClick={() => { setAuthMode('pin'); setPinError(''); }}
+              onClick={() => { setAuthMode('pin'); setPinError(''); setPin(''); pinRef.current = ''; }}
               className={`flex-1 py-1.5 min-[420px]:py-2 rounded-lg text-xs min-[420px]:text-sm font-bold text-center transition-all ${
                 authMode === 'pin' 
                   ? isDark 
@@ -385,7 +395,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => { setAuthMode('email'); setEmailError(''); }}
+              onClick={() => { setAuthMode('email'); setEmailError(''); setPin(''); pinRef.current = ''; }}
               className={`flex-1 py-1.5 min-[420px]:py-2 rounded-lg text-xs min-[420px]:text-sm font-bold text-center transition-all ${
                 authMode === 'email' 
                   ? isDark 
@@ -416,6 +426,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
                     onClick={() => {
                       setSelectedStaffId(member.id);
                       setPin('');
+                      pinRef.current = '';
                       setPinError('');
                       const defaultEmail = member.id === 'staff-1' || member.name.toLowerCase().includes('didula')
                         ? 'didula@saloonaquiness.lk'
@@ -555,7 +566,10 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
 
         {/* BOTTOM SECTION */}
         {authMode === 'pin' ? (
-          <div className="w-full flex flex-col items-center mt-auto pb-1 min-[420px]:pb-2">
+          <div 
+            className="w-full flex flex-col items-center mt-auto pb-1 min-[420px]:pb-2 touch-none select-none"
+            style={{ touchAction: 'none' }}
+          >
             
             {/* "Enter PIN for Didula" label */}
             <p className={`text-xs min-[420px]:text-sm mb-2 text-center transition-colors ${
@@ -565,13 +579,13 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
             </p>
 
             {/* 4 PIN Dots Indicator */}
-            <div className="flex items-center justify-center gap-3.5 min-[420px]:gap-4 mb-3.5 min-[420px]:mb-5">
+            <div className="flex items-center justify-center gap-3.5 min-[420px]:gap-4 mb-3.5 min-[420px]:mb-5 select-none pointer-events-none">
               {[0, 1, 2, 3].map((index) => {
                 const isFilled = pin.length > index;
                 return (
                   <div
                     key={index}
-                    className={`w-3.5 h-3.5 min-[420px]:w-4 min-[420px]:h-4 rounded-full transition-all duration-200 ${
+                    className={`w-3.5 h-3.5 min-[420px]:w-4 min-[420px]:h-4 rounded-full transition-all duration-150 ${
                       isFilled
                         ? pinError 
                           ? 'bg-red-500 scale-125' 
@@ -608,17 +622,21 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
             ) : null}
 
             {/* Numeric Keypad */}
-            <div className="grid grid-cols-3 gap-2.5 min-[420px]:gap-3 w-full">
+            <div 
+              className="grid grid-cols-3 gap-2.5 min-[420px]:gap-3 w-full touch-none select-none"
+              style={{ touchAction: 'none', WebkitUserSelect: 'none' }}
+            >
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                 <button
                   key={num}
                   type="button"
                   disabled={isLockedOut}
                   onClick={() => handleNumberPress(num.toString())}
-                  className={`h-11 min-[420px]:h-12 rounded-full text-xl min-[420px]:text-2xl font-semibold transition-all flex items-center justify-center select-none disabled:opacity-30 disabled:pointer-events-none ${
+                  style={{ touchAction: 'none', WebkitTapHighlightColor: 'transparent' }}
+                  className={`h-11 min-[420px]:h-12 rounded-full text-xl min-[420px]:text-2xl font-semibold transition-colors duration-75 flex items-center justify-center select-none cursor-pointer disabled:opacity-30 disabled:pointer-events-none active:scale-[0.96] ${
                     isDark 
-                      ? 'bg-zinc-900 border border-zinc-800 text-white shadow-sm active:bg-zinc-800 active:scale-95' 
-                      : 'bg-white shadow-[0_2px_6px_rgba(0,0,0,0.04)] border border-zinc-200/50 text-zinc-900 active:bg-zinc-100 active:scale-95'
+                      ? 'bg-zinc-900 border border-zinc-800 text-white shadow-sm active:bg-zinc-800' 
+                      : 'bg-white shadow-[0_2px_6px_rgba(0,0,0,0.04)] border border-zinc-200/50 text-zinc-900 active:bg-zinc-100'
                   }`}
                 >
                   {num}
@@ -632,10 +650,11 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
                 type="button"
                 disabled={isLockedOut}
                 onClick={() => handleNumberPress('0')}
-                className={`h-11 min-[420px]:h-12 rounded-full text-xl min-[420px]:text-2xl font-semibold transition-all flex items-center justify-center select-none disabled:opacity-30 disabled:pointer-events-none ${
+                style={{ touchAction: 'none', WebkitTapHighlightColor: 'transparent' }}
+                className={`h-11 min-[420px]:h-12 rounded-full text-xl min-[420px]:text-2xl font-semibold transition-colors duration-75 flex items-center justify-center select-none cursor-pointer disabled:opacity-30 disabled:pointer-events-none active:scale-[0.96] ${
                   isDark 
-                    ? 'bg-zinc-900 border border-zinc-800 text-white shadow-sm active:bg-zinc-800 active:scale-95' 
-                    : 'bg-white shadow-[0_2px_6px_rgba(0,0,0,0.04)] border border-zinc-200/50 text-zinc-900 active:bg-zinc-100 active:scale-95'
+                    ? 'bg-zinc-900 border border-zinc-800 text-white shadow-sm active:bg-zinc-800' 
+                    : 'bg-white shadow-[0_2px_6px_rgba(0,0,0,0.04)] border border-zinc-200/50 text-zinc-900 active:bg-zinc-100'
                 }`}
               >
                 0
@@ -645,7 +664,8 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
                 type="button"
                 disabled={isLockedOut}
                 onClick={handleBackspace}
-                className={`h-11 min-[420px]:h-12 rounded-full transition-all flex items-center justify-center select-none disabled:opacity-30 disabled:pointer-events-none ${
+                style={{ touchAction: 'none', WebkitTapHighlightColor: 'transparent' }}
+                className={`h-11 min-[420px]:h-12 rounded-full transition-colors duration-75 flex items-center justify-center select-none cursor-pointer disabled:opacity-30 disabled:pointer-events-none active:scale-[0.96] ${
                   isDark 
                     ? 'text-zinc-400 hover:text-white active:bg-zinc-800' 
                     : 'text-zinc-800 active:bg-zinc-200/60'
