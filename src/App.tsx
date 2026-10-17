@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Navbar } from './components/Navbar';
-import { Hero } from './components/Hero';
-import { BookingWizard } from './components/BookingWizard';
+import { CustomerApp } from './components/CustomerApp';
 import { AdminPortal } from './components/AdminPortal';
 import { StaffLogin } from './components/StaffLogin';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
-import { Footer } from './components/Footer';
 import { StorageService } from './services/storage';
 import { FirebaseService } from './services/firebaseService';
 import { Appointment, SalonService, StaffMember, CurrentStaffUser } from './types';
@@ -131,52 +128,31 @@ export const App: React.FC = () => {
     };
   }, [loadData]);
 
-  const pendingAppointmentsCount = appointments.filter(a => a.status === 'pending').length;
-
-  const handleStartBooking = () => {
-    handleViewChange('booking');
-    const bookingEl = document.getElementById('booking-section');
-    if (bookingEl) {
-      bookingEl.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
   const isAdminPortalActive = currentView === 'admin' && !!currentStaffUser;
 
   useEffect(() => {
-    const metaTheme = document.querySelector('meta[name="theme-color"]');
-    if (metaTheme) {
-      metaTheme.setAttribute('content', isAdminPortalActive ? '#f0f2f6' : '#18181b');
+    if (isAdminPortalActive) {
+      const metaTheme = document.querySelector('meta[name="theme-color"]');
+      if (metaTheme) {
+        metaTheme.setAttribute('content', '#f0f2f6');
+      }
     }
   }, [isAdminPortalActive]);
 
   return (
     <div className={`min-h-screen flex flex-col justify-between selection:bg-amber-500 selection:text-zinc-950 ${
-      isAdminPortalActive ? 'bg-[#f0f2f6] text-zinc-900' : 'bg-zinc-950 text-zinc-100'
+      isAdminPortalActive ? 'bg-[#f0f2f6] text-zinc-900' : 'bg-transparent'
     }`}>
       {currentView === 'booking' ? (
         <>
-          <div>
-            <Navbar 
-              currentView={currentView}
-              onViewChange={handleViewChange}
-              onBookNowClick={handleStartBooking}
-            />
-
-            <main>
-              <Hero onStartBooking={handleStartBooking} />
-              <BookingWizard
-                services={services}
-                staff={staff}
-                appointments={appointments}
-                onAppointmentCreated={loadData}
-                onGoToStaffPortal={() => handleViewChange('admin')}
-              />
-            </main>
-          </div>
-
+          <CustomerApp 
+            services={services}
+            staff={staff}
+            appointments={appointments}
+            onAppointmentCreated={loadData}
+            onGoToStaffPortal={() => handleViewChange('admin')}
+          />
           <PWAInstallBanner />
-          <Footer onOpenStaffPortal={() => handleViewChange('admin')} />
         </>
       ) : !currentStaffUser ? (
         <StaffLogin
