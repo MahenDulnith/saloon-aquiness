@@ -92,11 +92,14 @@ export const PWAInstallBanner: React.FC = () => {
         className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-sm z-50 p-3.5 rounded-2xl bg-zinc-900/95 backdrop-blur-xl border border-amber-500/40 shadow-2xl shadow-black/80 flex items-center justify-between gap-3 animate-fade-in"
       >
         <div className="flex items-center gap-3 min-w-0">
-          <img
-            src="/logo.png"
-            alt="Aquiness Barber"
-            className="w-10 h-10 rounded-xl object-cover ring-1 ring-amber-500/40 shrink-0"
-          />
+          <div className="relative shrink-0">
+            <div className="absolute -inset-1 rounded-full blur-md opacity-85 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 pointer-events-none" />
+            <img
+              src="/logo.png"
+              alt="Aquiness Barber"
+              className="relative w-11 h-11 rounded-full object-cover ring-2 ring-amber-500 shadow-xl shadow-amber-500/40 shrink-0"
+            />
+          </div>
           <div className="min-w-0">
             <p className="text-xs font-bold text-white truncate">Install Aquiness App</p>
             <p className="text-[11px] text-zinc-400 truncate">
@@ -141,12 +144,15 @@ export const IosInstallModal: React.FC<{ onClose: () => void }> = ({ onClose }) 
           <X className="w-4 h-4" />
         </button>
 
-        <div className="flex items-center gap-3 mb-4">
-          <img
-            src="/logo.png"
-            alt="Aquiness Barber"
-            className="w-12 h-12 rounded-2xl object-cover ring-2 ring-amber-500/40 shrink-0 shadow-md"
-          />
+        <div className="flex items-center gap-3.5 mb-4">
+          <div className="relative shrink-0">
+            <div className="absolute -inset-1.5 rounded-full blur-md opacity-85 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 pointer-events-none" />
+            <img
+              src="/logo.png"
+              alt="Aquiness Barber"
+              className="relative w-12 h-12 rounded-full object-cover ring-2 ring-amber-500 shadow-xl shadow-amber-500/50 shrink-0"
+            />
+          </div>
           <div>
             <h3 className="font-bold text-base leading-tight">Install on iPhone</h3>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Add to your Home Screen in 3 steps</p>
