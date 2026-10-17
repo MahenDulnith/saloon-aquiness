@@ -97,7 +97,7 @@ export const INITIAL_STAFF: StaffMember[] = [
     specialty: 'Signature Scissor Work & VIP Grooming',
     rating: 4.98,
     reviewsCount: 340,
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    avatar: '',
     available: true,
     workingDays: [1, 2, 3, 4, 5, 6]
   },
@@ -108,7 +108,7 @@ export const INITIAL_STAFF: StaffMember[] = [
     specialty: 'Skin Fades, Texture Crops & Beard Art',
     rating: 4.92,
     reviewsCount: 215,
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+    avatar: '',
     available: true,
     workingDays: [1, 2, 3, 4, 5, 6, 0]
   },
@@ -119,7 +119,7 @@ export const INITIAL_STAFF: StaffMember[] = [
     specialty: 'Coloring, Keratin & Head Massages',
     rating: 4.89,
     reviewsCount: 168,
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
+    avatar: '',
     available: true,
     workingDays: [2, 3, 4, 5, 6, 0]
   },
@@ -130,7 +130,7 @@ export const INITIAL_STAFF: StaffMember[] = [
     specialty: 'Detox Facials, Peels & Grooming',
     rating: 4.95,
     reviewsCount: 195,
-    avatar: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=400&q=80',
+    avatar: '',
     available: true,
     workingDays: [1, 2, 4, 5, 6]
   }
@@ -143,55 +143,5 @@ export const TIME_SLOTS = [
   '06:45 PM', '07:30 PM'
 ];
 
-export const INITIAL_APPOINTMENTS: Appointment[] = [
-  {
-    id: 'apt-101',
-    customerName: 'Roshan Samarasekara',
-    customerPhone: '077 123 4567',
-    customerEmail: 'roshan.s@example.com',
-    serviceId: 'srv-1',
-    serviceName: 'Executive Precision Haircut & Styling',
-    servicePrice: 2500,
-    serviceDuration: 45,
-    staffId: 'staff-1',
-    staffName: 'Didula Perera',
-    date: new Date().toISOString().split('T')[0],
-    timeSlot: '10:30 AM',
-    status: 'confirmed',
-    notes: 'Likes classic side part with natural pomade.',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'apt-102',
-    customerName: 'Chathura Bandara',
-    customerPhone: '071 987 6543',
-    customerEmail: 'chathura@example.com',
-    serviceId: 'srv-3',
-    serviceName: 'Royal Beard Sculpt & Hot Towel Treatment',
-    servicePrice: 1800,
-    serviceDuration: 35,
-    staffId: 'staff-2',
-    staffName: 'Kaveen Silva',
-    date: new Date().toISOString().split('T')[0],
-    timeSlot: '11:15 AM',
-    status: 'in_progress',
-    notes: 'Hot towel extra warm please.',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'apt-103',
-    customerName: 'Dr. Anura Wickramasinghe',
-    customerPhone: '076 555 1212',
-    serviceId: 'srv-9',
-    serviceName: 'The Gentleman Signature VIP Package',
-    servicePrice: 9500,
-    serviceDuration: 120,
-    staffId: 'staff-1',
-    staffName: 'Didula Perera',
-    date: new Date().toISOString().split('T')[0],
-    timeSlot: '02:15 PM',
-    status: 'pending',
-    notes: 'VIP customer. Prefers quiet session.',
-    createdAt: new Date().toISOString()
-  }
-];
+export const INITIAL_APPOINTMENTS: Appointment[] = [];
+

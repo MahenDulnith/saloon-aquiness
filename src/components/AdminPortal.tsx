@@ -191,15 +191,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       s => s.id === currentUser.id || s.name.toLowerCase() === currentUser.name.toLowerCase()
     );
     if (matched) {
+      const cleanMatchedAvatar = matched.avatar && !matched.avatar.includes('unsplash.com') ? matched.avatar : '';
+      const cleanUserAvatar = currentUser.avatar && !currentUser.avatar.includes('unsplash.com') ? currentUser.avatar : '';
       return {
         ...currentUser,
         name: matched.name,
-        avatar: matched.avatar || currentUser.avatar,
+        avatar: cleanMatchedAvatar || cleanUserAvatar || '',
         title: matched.role || currentUser.title,
         email: matched.email || currentUser.email
       };
     }
-    return currentUser;
+    const cleanCurrentAvatar = currentUser.avatar && !currentUser.avatar.includes('unsplash.com') ? currentUser.avatar : '';
+    return {
+      ...currentUser,
+      avatar: cleanCurrentAvatar
+    };
   }, [currentUser, staff]);
 
   const isAdmin = activeUser.role === 'admin';

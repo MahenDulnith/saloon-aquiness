@@ -101,7 +101,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
     id: 'staff-1',
     name: 'Didula Perera',
     role: 'Founder & Master Stylist',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    avatar: '',
     specialty: 'Master Barber'
   };
 
@@ -123,12 +123,16 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
       setIsLockedOut(false);
       setLockoutTimer(0);
 
+      const cleanAvatar = currentSelectedMember.avatar && !currentSelectedMember.avatar.includes('unsplash.com')
+        ? currentSelectedMember.avatar
+        : '';
+
       const user: CurrentStaffUser = {
         id: currentSelectedMember.id,
         name: currentSelectedMember.name,
         role: isDidulaAdmin ? 'admin' : 'staff',
         title: currentSelectedMember.role || (isDidulaAdmin ? 'Owner & Master Stylist' : 'Barber & Stylist'),
-        avatar: currentSelectedMember.avatar
+        avatar: cleanAvatar
       };
 
       localStorage.setItem('aquiness_staff_auth', JSON.stringify({
@@ -243,7 +247,9 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
         role: isOwnerEmail ? 'admin' : 'staff',
         title: isOwnerEmail ? 'Owner & Master Stylist' : 'Salon Stylist',
         email: email.trim(),
-        avatar: isOwnerEmail ? staffList[0]?.avatar : undefined
+        avatar: isOwnerEmail 
+          ? (staffList[0]?.avatar && !staffList[0]?.avatar.includes('unsplash.com') ? staffList[0]?.avatar : '') 
+          : undefined
       };
 
       localStorage.setItem('aquiness_staff_auth', JSON.stringify({

@@ -76,7 +76,12 @@ export const StorageService = {
       setItem(STORAGE_KEYS.STAFF, INITIAL_STAFF);
       return INITIAL_STAFF;
     }
-    return list;
+    // Clean out any legacy unsplash avatars
+    const cleaned = list.map(st => ({
+      ...st,
+      avatar: st.avatar && !st.avatar.includes('unsplash.com') ? st.avatar : ''
+    }));
+    return cleaned;
   },
 
   addOrUpdateStaff(staffMember: StaffMember): StaffMember[] {
@@ -112,15 +117,17 @@ export const StorageService = {
   // Appointments
   getAppointments(): Appointment[] {
     const list = getItem<Appointment[]>(STORAGE_KEYS.APPOINTMENTS, []);
-    if (!list || list.length === 0) {
-      setItem(STORAGE_KEYS.APPOINTMENTS, INITIAL_APPOINTMENTS);
-      return INITIAL_APPOINTMENTS;
+    // Filter out any mock/demo appointments from legacy storage
+    const cleaned = (list || []).filter(a => !['apt-101', 'apt-102', 'apt-103'].includes(a.id));
+    if (cleaned.length !== (list || []).length) {
+      setItem(STORAGE_KEYS.APPOINTMENTS, cleaned);
     }
-    return list;
+    return cleaned;
   },
 
   setAppointments(list: Appointment[]): void {
-    setItem(STORAGE_KEYS.APPOINTMENTS, list);
+    const cleaned = (list || []).filter(a => !['apt-101', 'apt-102', 'apt-103'].includes(a.id));
+    setItem(STORAGE_KEYS.APPOINTMENTS, cleaned);
   },
 
   createAppointment(aptData: Omit<Appointment, 'id' | 'createdAt' | 'status'> & { status?: AppointmentStatus }): Appointment {
@@ -153,6 +160,6 @@ export const StorageService = {
   resetDemoData(): void {
     setItem(STORAGE_KEYS.SERVICES, INITIAL_SERVICES);
     setItem(STORAGE_KEYS.STAFF, INITIAL_STAFF);
-    setItem(STORAGE_KEYS.APPOINTMENTS, INITIAL_APPOINTMENTS);
+    setItem(STORAGE_KEYS.APPOINTMENTS, []);
   }
 };

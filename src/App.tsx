@@ -39,12 +39,19 @@ export const App: React.FC = () => {
       if (!saved) return null;
       const parsed = JSON.parse(saved);
       if (parsed.authenticated && (Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000)) {
-        return parsed.user || {
+        if (parsed.user) {
+          const cleanAvatar = parsed.user.avatar && !parsed.user.avatar.includes('unsplash.com') ? parsed.user.avatar : '';
+          return {
+            ...parsed.user,
+            avatar: cleanAvatar
+          };
+        }
+        return {
           id: 'staff-1',
           name: 'Didula Perera',
           role: 'admin',
           title: 'Founder & Master Stylist',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'
+          avatar: ''
         };
       }
       return null;
@@ -84,10 +91,12 @@ export const App: React.FC = () => {
       if (!prev) return null;
       const match = fetchedStaffList.find(s => s.id === prev.id || s.name.toLowerCase() === prev.name.toLowerCase());
       if (match) {
+        const cleanMatchAvatar = match.avatar && !match.avatar.includes('unsplash.com') ? match.avatar : '';
+        const cleanPrevAvatar = prev.avatar && !prev.avatar.includes('unsplash.com') ? prev.avatar : '';
         const updated = {
           ...prev,
           name: match.name,
-          avatar: match.avatar || prev.avatar,
+          avatar: cleanMatchAvatar || cleanPrevAvatar || '',
           title: match.role || prev.title,
           email: match.email || prev.email
         };

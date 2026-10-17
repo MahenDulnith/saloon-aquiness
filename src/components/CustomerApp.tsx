@@ -893,15 +893,30 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <img
-                            src={member.avatar}
-                            alt={member.name}
-                            className={`w-11 h-11 rounded-full object-cover shrink-0 transition-all ${
-                              isSelected
-                                ? (isDark ? 'ring-2 ring-[#e5a43b]' : 'ring-2 ring-[#0d6efd]')
-                                : (isDark ? 'ring-1 ring-zinc-700' : 'ring-2 ring-zinc-200/80')
-                            }`}
-                          />
+                          {member.avatar ? (
+                            <img
+                              src={member.avatar}
+                              alt={member.name}
+                              className={`w-11 h-11 rounded-full object-cover shrink-0 transition-all ${
+                                isSelected
+                                  ? (isDark ? 'ring-2 ring-[#e5a43b]' : 'ring-2 ring-[#0d6efd]')
+                                  : (isDark ? 'ring-1 ring-zinc-700' : 'ring-2 ring-zinc-200/80')
+                              }`}
+                              onError={(e) => {
+                                (e.currentTarget as HTMLElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div
+                              className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-base shrink-0 transition-all ${
+                                isSelected
+                                  ? (isDark ? 'bg-amber-500/20 text-[#e5a43b] ring-2 ring-[#e5a43b]' : 'bg-blue-600/10 text-[#0d6efd] ring-2 ring-[#0d6efd]')
+                                  : (isDark ? 'bg-zinc-800 text-zinc-300 ring-1 ring-zinc-700' : 'bg-zinc-100 text-zinc-700 ring-2 ring-zinc-200/80')
+                              }`}
+                            >
+                              {member.name.charAt(0)}
+                            </div>
+                          )}
                           <div className="min-w-0">
                             <h4 className={`font-bold text-sm sm:text-base leading-snug truncate ${
                               isSelected 

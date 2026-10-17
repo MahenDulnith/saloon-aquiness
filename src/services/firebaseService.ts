@@ -13,7 +13,7 @@ import {
 } from "firebase/firestore";
 import { db, isFirebaseConfigured } from "../firebase/config";
 import { Appointment, SalonService, StaffMember, AppointmentStatus } from "../types";
-import { INITIAL_SERVICES, INITIAL_STAFF, INITIAL_APPOINTMENTS } from "../data/mockData";
+import { INITIAL_SERVICES, INITIAL_STAFF } from "../data/mockData";
 import { StorageService } from "./storage";
 
 const COLLECTIONS = {
@@ -68,15 +68,24 @@ export const FirebaseService = {
         for (const st of INITIAL_STAFF) {
           await setDoc(doc(db, COLLECTIONS.STAFF, st.id), sanitizeForFirestore(st));
         }
+      } else {
+        // Sanitize existing staff documents: remove any legacy unsplash stock photos
+        for (const d of staffSnap.docs) {
+          const st = d.data() as StaffMember;
+          if (st.avatar && st.avatar.includes('unsplash.com')) {
+            try {
+              await updateDoc(doc(db, COLLECTIONS.STAFF, d.id), { avatar: '' });
+            } catch (_) {}
+          }
+        }
       }
 
-      // Check if appointments exists
-      const aptSnap = await getDocs(collection(db, COLLECTIONS.APPOINTMENTS));
-      if (aptSnap.empty) {
-        console.log("Seeding sample appointments to Cloud Firestore...");
-        for (const a of INITIAL_APPOINTMENTS) {
-          await setDoc(doc(db, COLLECTIONS.APPOINTMENTS, a.id), sanitizeForFirestore(a));
-        }
+      // Clean up any legacy demo/mock appointments from Cloud Firestore
+      const demoMockAptIds = ['apt-101', 'apt-102', 'apt-103'];
+      for (const demoId of demoMockAptIds) {
+        try {
+          await deleteDoc(doc(db, COLLECTIONS.APPOINTMENTS, demoId));
+        } catch (_) {}
       }
     } catch (error) {
       console.warn("Firestore initialize error (falling back to local cache):", error);
@@ -133,7 +142,13 @@ export const FirebaseService = {
         await this.initializeDatabase();
         return StorageService.getStaff();
       }
-      return snap.docs.map(d => d.data() as StaffMember);
+      return snap.docs.map(d => {
+        const st = d.data() as StaffMember;
+        return {
+          ...st,
+          avatar: st.avatar && !st.avatar.includes('unsplash.com') ? st.avatar : ''
+        };
+      });
     } catch (e) {
       console.warn("Error fetching staff from Firestore, using local cache:", e);
       return StorageService.getStaff();
@@ -187,11 +202,10 @@ export const FirebaseService = {
     try {
       const q = query(collection(db, COLLECTIONS.APPOINTMENTS), orderBy("createdAt", "desc"));
       const snap = await getDocs(q);
-      if (snap.empty) {
-        await this.initializeDatabase();
-        return StorageService.getAppointments();
-      }
-      return snap.docs.map(d => d.data() as Appointment);
+      const list = snap.docs
+        .map(d => d.data() as Appointment)
+        .filter(a => !['apt-101', 'apt-102', 'apt-103'].includes(a.id));
+      return list;
     } catch (e) {
       console.warn("Error reading appointments from Firestore, using local cache:", e);
       return StorageService.getAppointments();
@@ -246,10 +260,10 @@ export const FirebaseService = {
     try {
       const q = query(collection(db, COLLECTIONS.APPOINTMENTS), orderBy("createdAt", "desc"));
       const unsubscribe = onSnapshot(q, (snapshot) => {
-        if (!snapshot.empty) {
-          const list = snapshot.docs.map(d => d.data() as Appointment);
-          onUpdate(list);
-        }
+        const list = snapshot.docs
+          .map(d => d.data() as Appointment)
+          .filter(a => !['apt-101', 'apt-102', 'apt-103'].includes(a.id));
+        onUpdate(list);
       }, (err) => {
         console.warn("Real-time listener note (offline or permission):", err);
       });
