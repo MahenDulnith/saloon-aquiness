@@ -1,8 +1,11 @@
-const CACHE_NAME = 'didula-saloon-cache-v1';
+const CACHE_NAME = 'aquiness-saloon-cache-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  '/manifest.json',
+  '/manifest.json?v=3',
+  '/apple-touch-icon-v3.png',
+  '/icons/icon-192-v3.png',
+  '/icons/icon-512-v3.png',
   '/favicon.svg'
 ];
 
@@ -28,6 +31,24 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+
+  // Network first for manifest and HTML navigations to ensure updates are instantaneous
+  if (url.pathname.includes('manifest.json') || event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request).then((res) => res || caches.match('/')))
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
