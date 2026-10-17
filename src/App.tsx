@@ -61,6 +61,7 @@ export const App: React.FC = () => {
 
   // Load data
   const loadData = useCallback(async () => {
+    let fetchedStaffList: StaffMember[] = [];
     try {
       const [fetchedServices, fetchedStaff, fetchedApts] = await Promise.all([
         FirebaseService.getServices(),
@@ -70,11 +71,40 @@ export const App: React.FC = () => {
       setServices(fetchedServices);
       setStaff(fetchedStaff);
       setAppointments(fetchedApts);
+      fetchedStaffList = fetchedStaff;
     } catch {
-      setServices(StorageService.getServices());
-      setStaff(StorageService.getStaff());
-      setAppointments(StorageService.getAppointments());
+      const fallbackServices = StorageService.getServices();
+      const fallbackStaff = StorageService.getStaff();
+      const fallbackApts = StorageService.getAppointments();
+      setServices(fallbackServices);
+      setStaff(fallbackStaff);
+      setAppointments(fallbackApts);
+      fetchedStaffList = fallbackStaff;
     }
+
+    // Keep logged-in currentStaffUser synced with updated staff profile/avatar
+    setCurrentStaffUser(prev => {
+      if (!prev) return null;
+      const match = fetchedStaffList.find(s => s.id === prev.id || s.name.toLowerCase() === prev.name.toLowerCase());
+      if (match) {
+        const updated = {
+          ...prev,
+          name: match.name,
+          avatar: match.avatar || prev.avatar,
+          title: match.role || prev.title,
+          email: match.email || prev.email
+        };
+        try {
+          localStorage.setItem('aquiness_staff_auth', JSON.stringify({
+            authenticated: true,
+            timestamp: Date.now(),
+            user: updated
+          }));
+        } catch {}
+        return updated;
+      }
+      return prev;
+    });
   }, []);
 
   useEffect(() => {
@@ -152,6 +182,7 @@ export const App: React.FC = () => {
           onAppointmentsUpdated={loadData}
           onServicesUpdated={loadData}
           onStaffUpdated={loadData}
+          onCurrentUserUpdated={setCurrentStaffUser}
           onExitToClientWebsite={() => handleViewChange('booking')}
           onLockPortal={() => {
             localStorage.removeItem('aquiness_staff_auth');

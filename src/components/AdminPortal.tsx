@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { Appointment, SalonService, StaffMember, AppointmentStatus, ServiceCategory, CurrentStaffUser } from '../types';
 import { StorageService } from '../services/storage';
+import { FirebaseService } from '../services/firebaseService';
 import { IosInstallModal } from './PWAInstallBanner';
 
 interface AdminPortalProps {
@@ -41,6 +42,7 @@ interface AdminPortalProps {
   onAppointmentsUpdated: () => void;
   onServicesUpdated: () => void;
   onStaffUpdated: () => void;
+  onCurrentUserUpdated?: (user: CurrentStaffUser) => void;
   onExitToClientWebsite?: () => void;
   onLockPortal?: () => void;
 }
@@ -53,6 +55,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onAppointmentsUpdated,
   onServicesUpdated,
   onStaffUpdated,
+  onCurrentUserUpdated,
   onExitToClientWebsite,
   onLockPortal
 }) => {
@@ -83,7 +86,25 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   });
 
   const todayIso = new Date().toISOString().split('T')[0];
-  const isAdmin = currentUser.role === 'admin';
+
+  // Live synced current user (keeps profile photo & details in sync immediately)
+  const activeUser: CurrentStaffUser = useMemo(() => {
+    const matched = staff.find(
+      s => s.id === currentUser.id || s.name.toLowerCase() === currentUser.name.toLowerCase()
+    );
+    if (matched) {
+      return {
+        ...currentUser,
+        name: matched.name,
+        avatar: matched.avatar || currentUser.avatar,
+        title: matched.role || currentUser.title,
+        email: matched.email || currentUser.email
+      };
+    }
+    return currentUser;
+  }, [currentUser, staff]);
+
+  const isAdmin = activeUser.role === 'admin';
 
   // Format today's date (e.g. "Saturday, 17 October")
   const formattedToday = useMemo(() => {
@@ -118,9 +139,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
       // Stylist scope
       if (queueScope === 'mine') {
-        const isMine = apt.staffId === currentUser.id || 
-          apt.staffName.toLowerCase().includes(currentUser.name.toLowerCase()) ||
-          currentUser.name.toLowerCase().includes(apt.staffName.toLowerCase());
+        const isMine = apt.staffId === activeUser.id || 
+          apt.staffName.toLowerCase().includes(activeUser.name.toLowerCase()) ||
+          activeUser.name.toLowerCase().includes(apt.staffName.toLowerCase());
         if (!isMine) return false;
       }
 
@@ -287,7 +308,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setShowStaffModal(true);
   };
 
-  const handleSaveStaff = (e: React.FormEvent) => {
+  const handleSaveStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!staffFormName.trim()) {
       alert('Please enter staff full name.');
@@ -312,22 +333,31 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       servicesOffered: editingStaff ? editingStaff.servicesOffered : ['all']
     };
 
-    StorageService.addOrUpdateStaff(staffMemberToSave);
+    await FirebaseService.addOrUpdateStaff(staffMemberToSave);
 
     // Sync auth user avatar in session if current user edited their own profile
-    if (currentUser.id === staffMemberToSave.id) {
-      currentUser.avatar = staffMemberToSave.avatar;
-      currentUser.name = staffMemberToSave.name;
+    const isEditingSelf = 
+      activeUser.id === staffMemberToSave.id || 
+      currentUser.id === staffMemberToSave.id ||
+      currentUser.name.toLowerCase() === staffMemberToSave.name.toLowerCase();
+
+    if (isEditingSelf) {
+      const updatedUser: CurrentStaffUser = {
+        ...activeUser,
+        name: staffMemberToSave.name,
+        avatar: staffMemberToSave.avatar,
+        title: staffMemberToSave.role,
+        email: staffMemberToSave.email
+      };
+      if (onCurrentUserUpdated) {
+        onCurrentUserUpdated(updatedUser);
+      }
       try {
-        const saved = localStorage.getItem('aquiness_staff_auth');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed.user) {
-            parsed.user.avatar = staffMemberToSave.avatar;
-            parsed.user.name = staffMemberToSave.name;
-            localStorage.setItem('aquiness_staff_auth', JSON.stringify(parsed));
-          }
-        }
+        localStorage.setItem('aquiness_staff_auth', JSON.stringify({
+          authenticated: true,
+          timestamp: Date.now(),
+          user: updatedUser
+        }));
       } catch (err) {
         console.error('Error syncing auth session avatar:', err);
       }
@@ -337,13 +367,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setShowStaffModal(false);
   };
 
-  const handleDeleteStaff = (id: string) => {
+  const handleDeleteStaff = async (id: string) => {
     if (id === 'staff-1' || editingStaff?.name.toLowerCase().includes('didula')) {
       alert('Cannot delete the salon owner account.');
       return;
     }
     if (window.confirm('Remove this staff member from the salon?')) {
-      StorageService.deleteStaff(id);
+      await FirebaseService.deleteStaff(id);
       onStaffUpdated();
       setShowStaffModal(false);
     }
@@ -397,7 +427,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setShowServiceModal(true);
   };
 
-  const handleSaveService = (e: React.FormEvent) => {
+  const handleSaveService = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!serviceFormName.trim()) {
       alert('Please enter service name.');
@@ -417,20 +447,28 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       image: serviceFormImage.trim() || undefined
     };
 
-    StorageService.addOrUpdateService(serviceToSave);
+    await FirebaseService.addOrUpdateService(serviceToSave);
     onServicesUpdated();
     setShowServiceModal(false);
   };
 
-  const handleToggleServiceActive = (srvId: string, e: React.MouseEvent) => {
+  const handleToggleServiceActive = async (srvId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    StorageService.toggleServiceActive(srvId);
+    const target = services.find(s => s.id === srvId);
+    if (target) {
+      await FirebaseService.addOrUpdateService({
+        ...target,
+        active: target.active === false ? true : false
+      });
+    } else {
+      StorageService.toggleServiceActive(srvId);
+    }
     onServicesUpdated();
   };
 
-  const handleDeleteService = (srvId: string) => {
+  const handleDeleteService = async (srvId: string) => {
     if (window.confirm('Delete this service from the salon catalog?')) {
-      StorageService.deleteService(srvId);
+      await FirebaseService.deleteService(srvId);
       onServicesUpdated();
       setShowServiceModal(false);
     }
@@ -462,20 +500,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 type="button"
                 onClick={() => setShowProfileMenu(true)}
                 className="w-11 h-11 rounded-full bg-[#0d6efd] text-white font-extrabold text-lg flex items-center justify-center shadow-md active:scale-95 transition-transform overflow-hidden ring-2 ring-white/80"
-                title={`${currentUser.name} (${currentUser.role})`}
+                title={`${activeUser.name} (${activeUser.role})`}
               >
-                {currentUser.avatar ? (
+                {activeUser.avatar ? (
                   <img
-                    src={currentUser.avatar}
-                    alt={currentUser.name}
+                    src={activeUser.avatar}
+                    alt={activeUser.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       (e.currentTarget as HTMLElement).style.display = 'none';
                     }}
                   />
                 ) : null}
-                <span className={currentUser.avatar ? 'sr-only' : 'block'}>
-                  {currentUser.name.charAt(0).toUpperCase()}
+                <span className={activeUser.avatar ? 'sr-only' : 'block'}>
+                  {activeUser.name.charAt(0).toUpperCase()}
                 </span>
               </button>
             </div>
@@ -888,31 +926,31 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 {/* Profile Card */}
                 <div 
                   onClick={() => {
-                    const me = staff.find(s => s.id === currentUser.id);
+                    const me = staff.find(s => s.id === activeUser.id);
                     if (me) openEditStaffModal(me);
                   }}
                   className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-200/60 mt-4 flex items-center justify-between gap-3 cursor-pointer hover:bg-zinc-50/70 transition-colors group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-12 h-12 rounded-full bg-[#0d6efd] text-white font-extrabold text-xl flex items-center justify-center shadow-sm shrink-0 overflow-hidden ring-1 ring-zinc-200/80">
-                      {currentUser.avatar ? (
+                      {activeUser.avatar ? (
                         <img
-                          src={currentUser.avatar}
-                          alt={currentUser.name}
+                          src={activeUser.avatar}
+                          alt={activeUser.name}
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             (e.currentTarget as HTMLElement).style.display = 'none';
                           }}
                         />
                       ) : null}
-                      <span className={currentUser.avatar ? 'sr-only' : 'block'}>
-                        {currentUser.name.charAt(0)}
+                      <span className={activeUser.avatar ? 'sr-only' : 'block'}>
+                        {activeUser.name.charAt(0)}
                       </span>
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-bold text-base text-zinc-900 truncate">
-                          {currentUser.name}
+                          {activeUser.name}
                         </h3>
                         {isAdmin && (
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
@@ -921,7 +959,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         )}
                       </div>
                       <p className="text-xs text-zinc-500 truncate">
-                        {currentUser.title || (isAdmin ? 'Admin' : 'Stylist')} · {currentUser.email}
+                        {activeUser.title || (isAdmin ? 'Admin' : 'Stylist')} · {activeUser.email}
                       </p>
                     </div>
                   </div>
@@ -1785,23 +1823,23 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           <div className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 space-y-4">
             <div className="flex items-center gap-3 pb-3 border-b border-zinc-100">
               <div className="w-12 h-12 rounded-full bg-[#0d6efd] text-white font-extrabold text-xl flex items-center justify-center shadow-md overflow-hidden ring-1 ring-zinc-200/80">
-                {currentUser.avatar ? (
+                {activeUser.avatar ? (
                   <img
-                    src={currentUser.avatar}
-                    alt={currentUser.name}
+                    src={activeUser.avatar}
+                    alt={activeUser.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       (e.currentTarget as HTMLElement).style.display = 'none';
                     }}
                   />
                 ) : null}
-                <span className={currentUser.avatar ? 'sr-only' : 'block'}>
-                  {currentUser.name.charAt(0)}
+                <span className={activeUser.avatar ? 'sr-only' : 'block'}>
+                  {activeUser.name.charAt(0)}
                 </span>
               </div>
               <div className="min-w-0 flex-1">
-                <h4 className="font-bold text-base text-zinc-900 truncate">{currentUser.name}</h4>
-                <p className="text-xs text-zinc-500 truncate">{currentUser.title || currentUser.role} · {currentUser.email}</p>
+                <h4 className="font-bold text-base text-zinc-900 truncate">{activeUser.name}</h4>
+                <p className="text-xs text-zinc-500 truncate">{activeUser.title || activeUser.role} · {activeUser.email}</p>
               </div>
             </div>
 
@@ -1810,7 +1848,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 type="button"
                 onClick={() => {
                   setShowProfileMenu(false);
-                  const me = staff.find(s => s.id === currentUser.id);
+                  const me = staff.find(s => s.id === activeUser.id);
                   if (me) openEditStaffModal(me);
                 }}
                 className="w-full py-3 px-4 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#0d6efd] font-bold text-sm flex items-center gap-3 text-left transition-colors"

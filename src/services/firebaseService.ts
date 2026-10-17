@@ -115,6 +115,30 @@ export const FirebaseService = {
     }
   },
 
+  async addOrUpdateStaff(staffMember: StaffMember): Promise<StaffMember[]> {
+    const updated = StorageService.addOrUpdateStaff(staffMember);
+    if (!isFirebaseConfigured()) return updated;
+
+    try {
+      await setDoc(doc(db, COLLECTIONS.STAFF, staffMember.id), staffMember);
+    } catch (e) {
+      console.error("Firestore error updating staff:", e);
+    }
+    return updated;
+  },
+
+  async deleteStaff(staffId: string): Promise<StaffMember[]> {
+    const updated = StorageService.deleteStaff(staffId);
+    if (!isFirebaseConfigured()) return updated;
+
+    try {
+      await deleteDoc(doc(db, COLLECTIONS.STAFF, staffId));
+    } catch (e) {
+      console.error("Firestore error deleting staff:", e);
+    }
+    return updated;
+  },
+
   async toggleStaffAvailability(staffId: string): Promise<void> {
     const updated = StorageService.toggleStaffAvailability(staffId);
     if (!isFirebaseConfigured()) return;
