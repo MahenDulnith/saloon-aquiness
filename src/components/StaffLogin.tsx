@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Delete, Mail, KeyRound, Eye, EyeOff, AlertCircle, Sun, Moon } from 'lucide-react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from '../firebase/config';
 import { CurrentStaffUser, StaffMember } from '../types';
 import { INITIAL_STAFF } from '../data/mockData';
@@ -55,6 +55,24 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [emailError, setEmailError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [resetSent, setResetSent] = useState<boolean>(false);
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      setEmailError('Please enter your email above to reset password.');
+      return;
+    }
+    setEmailError('');
+    try {
+      if (isFirebaseConfigured()) {
+        await sendPasswordResetEmail(auth, email.trim());
+      }
+      setResetSent(true);
+      setTimeout(() => setResetSent(false), 5000);
+    } catch (err: any) {
+      setEmailError(err.message || 'Could not send reset email.');
+    }
+  };
 
   // Active selected member
   const currentSelectedMember = staffList.find(s => s.id === selectedStaffId) || staffList[0] || {
@@ -276,10 +294,10 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
         className="relative w-full max-w-[340px] min-[390px]:max-w-[356px] min-[420px]:max-w-[390px] sm:max-w-[400px] min-h-[100dvh] flex flex-col justify-between px-3 min-[420px]:px-4"
       >
         
-        {/* UPPER SECTION: Logo, Title, Segmented Switcher, Staff Selector */}
+        {/* UPPER SECTION: Logo, Title, Subtitle, Segmented Switcher, Staff Selector (in PIN mode) */}
         <div className="w-full flex flex-col items-center">
           
-          {/* 1. Top Official Logo with Gold Glow */}
+          {/* 1. Official Logo with Gold Glow */}
           <div className="relative mt-1 min-[420px]:mt-2">
             <div className={`absolute -inset-2 rounded-full blur-md opacity-75 pointer-events-none ${
               isDark 
@@ -294,72 +312,19 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
           </div>
 
           {/* 2. Title & Subtitle */}
-          <h1 className={`text-2xl min-[420px]:text-3xl font-extrabold tracking-tight mt-2.5 min-[420px]:mt-3.5 text-center ${
+          <h1 className={`text-2xl min-[420px]:text-3xl font-extrabold tracking-tight mt-2.5 min-[420px]:mt-3 text-center ${
             isDark ? 'text-white' : 'text-zinc-900'
           }`}>
             Staff sign in
           </h1>
-          <p className={`text-xs min-[420px]:text-sm font-medium text-center mt-1 px-2 leading-relaxed ${
+          <p className={`text-xs min-[420px]:text-sm font-medium text-center mt-0.5 px-2 leading-relaxed ${
             isDark ? 'text-zinc-400' : 'text-zinc-500'
           }`}>
-            Aquiness Barber · choose your name, then enter your PIN
+            Aquiness Barber
           </p>
 
-          {/* 3. Staff Selector (Horizontal Row) - USER FIRST */}
-          <div className="grid grid-cols-4 gap-2.5 min-[420px]:gap-3.5 w-full mt-4 min-[420px]:mt-5.5">
-            {activeStaffMembers.map((member) => {
-              const isSelected = selectedStaffId === member.id;
-              const firstName = member.name.split(' ')[0];
-              const initial = firstName.charAt(0);
-              const isMemberAdmin = member.id === 'staff-1' || member.name.toLowerCase().includes('didula');
-
-              return (
-                <button
-                  key={member.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedStaffId(member.id);
-                    setPin('');
-                    setPinError('');
-                    const defaultEmail = member.id === 'staff-1' || member.name.toLowerCase().includes('didula')
-                      ? 'didula@saloonaquiness.lk'
-                      : (member.email || `${member.name.toLowerCase().split(' ')[0]}@saloonaquiness.lk`);
-                    setEmail(defaultEmail);
-                  }}
-                  className="flex flex-col items-center group focus:outline-none"
-                >
-                  <div 
-                    className={`w-12 h-12 min-[420px]:w-14 min-[420px]:h-14 rounded-full flex items-center justify-center font-bold text-lg min-[420px]:text-xl transition-all ${
-                      isSelected 
-                        ? isDark 
-                          ? 'bg-amber-500 text-zinc-950 ring-2 ring-amber-500 ring-offset-2 ring-offset-zinc-950 shadow-lg shadow-amber-500/30' 
-                          : 'bg-[#0d6efd] text-white ring-2 ring-[#0d6efd] ring-offset-2 ring-offset-[#f0f2f6] shadow-md' 
-                        : isDark 
-                          ? 'bg-zinc-900 text-zinc-200 border border-zinc-800 shadow-sm hover:border-zinc-700' 
-                          : 'bg-white text-zinc-900 border border-zinc-200 shadow-sm hover:border-zinc-300'
-                    }`}
-                  >
-                    {initial}
-                  </div>
-                  <span className={`text-xs min-[420px]:text-sm font-bold mt-1.5 text-center truncate max-w-full ${
-                    isDark ? 'text-zinc-100' : 'text-zinc-900'
-                  }`}>
-                    {firstName}
-                  </span>
-                  <span className={`text-[11px] min-[420px]:text-xs text-center truncate max-w-full leading-none mt-0.5 ${
-                    isDark 
-                      ? (isMemberAdmin ? 'text-amber-400 font-semibold' : 'text-zinc-400') 
-                      : 'text-zinc-500'
-                  }`}>
-                    {isMemberAdmin ? 'Admin' : 'Stylist'}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* 4. Segmented Control Pill Switcher - THEN PIN OR EMAIL */}
-          <div className={`w-full p-1 rounded-xl flex items-center mt-4 min-[420px]:mt-5.5 transition-colors ${
+          {/* 3. Segmented Control Pill Switcher - FIRST (ABOVE STAFF NAMES) */}
+          <div className={`w-full p-1 rounded-xl flex items-center mt-3.5 min-[420px]:mt-4.5 transition-colors ${
             isDark 
               ? 'bg-zinc-900 border border-zinc-800' 
               : 'bg-[#e2e5eb] shadow-inner'
@@ -396,13 +361,159 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
             </button>
           </div>
 
+          {/* 4. Staff Selector (Horizontal Row) - ONLY IN PIN MODE */}
+          {authMode === 'pin' && (
+            <div className="grid grid-cols-4 gap-2.5 min-[420px]:gap-3.5 w-full mt-4 min-[420px]:mt-5">
+              {activeStaffMembers.map((member) => {
+                const isSelected = selectedStaffId === member.id;
+                const firstName = member.name.split(' ')[0];
+                const initial = firstName.charAt(0);
+                const isMemberAdmin = member.id === 'staff-1' || member.name.toLowerCase().includes('didula');
+
+                return (
+                  <button
+                    key={member.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedStaffId(member.id);
+                      setPin('');
+                      setPinError('');
+                      const defaultEmail = member.id === 'staff-1' || member.name.toLowerCase().includes('didula')
+                        ? 'didula@saloonaquiness.lk'
+                        : (member.email || `${member.name.toLowerCase().split(' ')[0]}@saloonaquiness.lk`);
+                      setEmail(defaultEmail);
+                    }}
+                    className="flex flex-col items-center group focus:outline-none"
+                  >
+                    <div 
+                      className={`w-12 h-12 min-[420px]:w-14 min-[420px]:h-14 rounded-full flex items-center justify-center font-bold text-lg min-[420px]:text-xl transition-all ${
+                        isSelected 
+                          ? isDark 
+                            ? 'bg-amber-500 text-zinc-950 ring-2 ring-amber-500 ring-offset-2 ring-offset-zinc-950 shadow-lg shadow-amber-500/30' 
+                            : 'bg-[#0d6efd] text-white ring-2 ring-[#0d6efd] ring-offset-2 ring-offset-[#f0f2f6] shadow-md' 
+                          : isDark 
+                            ? 'bg-zinc-900 text-zinc-200 border border-zinc-800 shadow-sm hover:border-zinc-700' 
+                            : 'bg-white text-zinc-900 border border-zinc-200 shadow-sm hover:border-zinc-300'
+                      }`}
+                    >
+                      {initial}
+                    </div>
+                    <span className={`text-xs min-[420px]:text-sm font-bold mt-1.5 text-center truncate max-w-full ${
+                      isDark ? 'text-zinc-100' : 'text-zinc-900'
+                    }`}>
+                      {firstName}
+                    </span>
+                    <span className={`text-[11px] min-[420px]:text-xs text-center truncate max-w-full leading-none mt-0.5 ${
+                      isDark 
+                        ? (isMemberAdmin ? 'text-amber-400 font-semibold' : 'text-zinc-400') 
+                        : 'text-zinc-500'
+                    }`}>
+                      {isMemberAdmin ? 'Admin' : 'Stylist'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* 5. In EMAIL MODE: Input fields directly below switch */}
+          {authMode === 'email' && (
+            <div className="w-full mt-4 min-[420px]:mt-6 space-y-4">
+              <div>
+                <label className={`block text-xs font-semibold mb-1.5 ${
+                  isDark ? 'text-zinc-300' : 'text-zinc-700'
+                }`}>
+                  Email
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="email"
+                    required
+                    placeholder="name@aquiness.com"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    className={`w-full pl-10 pr-4 py-3 rounded-2xl text-sm focus:outline-none transition-colors ${
+                      isDark 
+                        ? 'bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-500 focus:border-amber-500' 
+                        : 'bg-white border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:ring-2 focus:ring-[#0d6efd] shadow-sm'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className={`block text-xs font-semibold mb-1.5 ${
+                  isDark ? 'text-zinc-300' : 'text-zinc-700'
+                }`}>
+                  Password
+                </label>
+                <div className="relative">
+                  <KeyRound className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    placeholder="Enter password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    className={`w-full pl-10 pr-10 py-3 rounded-2xl text-sm focus:outline-none transition-colors ${
+                      isDark 
+                        ? 'bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-500 focus:border-amber-500' 
+                        : 'bg-white border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:ring-2 focus:ring-[#0d6efd] shadow-sm'
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Forgot password link */}
+              <div className="flex justify-end pt-0.5">
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className={`text-xs font-semibold hover:underline transition-colors ${
+                    isDark ? 'text-amber-400' : 'text-[#0d6efd]'
+                  }`}
+                >
+                  Forgot password?
+                </button>
+              </div>
+
+              {emailError && (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{emailError}</span>
+                </div>
+              )}
+
+              {resetSent && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-2">
+                  <span>Password reset email sent! Check your inbox.</span>
+                </div>
+              )}
+            </div>
+          )}
+
         </div>
 
-        {/* BOTTOM SECTION: PIN DOTS, BUTTON, LINK, KEYBOARD ALL GROUPED CLOSE TOGETHER AT BOTTOM */}
+        {/* BOTTOM SECTION */}
         {authMode === 'pin' ? (
           <div className="w-full flex flex-col items-center mt-auto pb-1 min-[420px]:pb-2">
             
-            {/* 5. 4 PIN Dots Indicator - comfortably placed above the button */}
+            {/* "Enter PIN for Didula" label */}
+            <p className={`text-xs min-[420px]:text-sm mb-2 text-center transition-colors ${
+              isDark ? 'text-zinc-400' : 'text-zinc-600'
+            }`}>
+              Enter PIN for <span className={`font-bold ${isDark ? 'text-white' : 'text-zinc-900'}`}>{currentSelectedMember.name.split(' ')[0]}</span>
+            </p>
+
+            {/* 4 PIN Dots Indicator */}
             <div className="flex items-center justify-center gap-3.5 min-[420px]:gap-4 mb-3.5 min-[420px]:mb-5">
               {[0, 1, 2, 3].map((index) => {
                 const isFilled = pin.length > index;
@@ -432,31 +543,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
               </p>
             )}
 
-            {/* 6. PRIMARY BUTTON - CLOSE TO LINK & KEYBOARD */}
-            <button
-              type="button"
-              onClick={() => handleManualSubmit()}
-              className={`w-full py-3.5 min-[420px]:py-4 rounded-2xl font-bold text-sm min-[420px]:text-base active:scale-[0.99] transition-all text-center mb-2 min-[420px]:mb-2.5 ${
-                isDark 
-                  ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-zinc-950 shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40' 
-                  : 'bg-[#0d6efd] hover:bg-[#0b5ed7] text-white shadow-md shadow-[#0d6efd]/20'
-              }`}
-            >
-              Sign in as {currentSelectedMember.name.split(' ')[0]}
-            </button>
-
-            {/* 7. BACK LINK - VERY CLOSE TO KEYBOARD */}
-            <button
-              type="button"
-              onClick={onCancel}
-              className={`text-xs min-[420px]:text-sm font-semibold transition-colors mb-2.5 min-[420px]:mb-3.5 ${
-                isDark ? 'text-zinc-400 hover:text-amber-400' : 'text-[#0d6efd] hover:text-[#0b5ed7]'
-              }`}
-            >
-              Back to client booking
-            </button>
-
-            {/* 8. NUMERIC KEYPAD PILLS AT THE VERY BOTTOM */}
+            {/* Numeric Keypad */}
             <div className="grid grid-cols-3 gap-2.5 min-[420px]:gap-3 w-full">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                 <button
@@ -503,93 +590,50 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
               </button>
             </div>
 
-          </div>
-        ) : (
-          /* EMAIL MODE FLOW */
-          <form onSubmit={handleEmailSubmit} className="w-full space-y-3.5 min-[420px]:space-y-4 mt-auto pb-2 min-[420px]:pb-4">
-            <div>
-              <label className={`block text-xs font-semibold mb-1 ${
-                isDark ? 'text-zinc-300' : 'text-zinc-600'
-              }`}>
-                Staff Email
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="email"
-                  required
-                  placeholder="didula@saloonaquiness.lk"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className={`w-full pl-10 pr-4 py-3 rounded-xl text-sm focus:outline-none transition-colors ${
-                    isDark 
-                      ? 'bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-500 focus:border-amber-500' 
-                      : 'bg-white border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:ring-2 focus:ring-[#0d6efd]'
-                  }`}
-                />
-              </div>
-            </div>
+            {/* Helper text & Back Link placed under keypad to prevent misclicks */}
+            <p className={`text-[11px] min-[420px]:text-xs mt-3 min-[420px]:mt-3.5 text-center ${
+              isDark ? 'text-zinc-500' : 'text-zinc-400'
+            }`}>
+              Signs in automatically after 4 digits
+            </p>
 
-            <div>
-              <label className={`block text-xs font-semibold mb-1 ${
-                isDark ? 'text-zinc-300' : 'text-zinc-600'
-              }`}>
-                Password
-              </label>
-              <div className="relative">
-                <KeyRound className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className={`w-full pl-10 pr-10 py-3 rounded-xl text-sm focus:outline-none transition-colors ${
-                    isDark 
-                      ? 'bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-500 focus:border-amber-500' 
-                      : 'bg-white border border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:ring-2 focus:ring-[#0d6efd]'
-                  }`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            {emailError && (
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{emailError}</span>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className={`w-full py-3.5 rounded-2xl font-bold text-sm shadow-md disabled:opacity-50 transition-all text-center ${
-                isDark 
-                  ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-zinc-950 shadow-amber-500/25' 
-                  : 'bg-[#0d6efd] hover:bg-[#0b5ed7] text-white shadow-[#0d6efd]/20'
-              }`}
-            >
-              {loading ? 'Signing in...' : 'Sign In with Email'}
-            </button>
-
-            {/* Back to Client Booking Link */}
             <button
               type="button"
               onClick={onCancel}
-              className={`w-full text-center mt-3 text-xs sm:text-sm font-semibold transition-colors ${
+              className={`text-xs min-[420px]:text-sm font-semibold transition-colors mt-1.5 pb-1 ${
                 isDark ? 'text-zinc-400 hover:text-amber-400' : 'text-[#0d6efd] hover:text-[#0b5ed7]'
               }`}
             >
               Back to client booking
             </button>
-          </form>
+
+          </div>
+        ) : (
+          /* EMAIL MODE BOTTOM SECTION: Sign In button & Back link */
+          <div className="w-full flex flex-col items-center mt-auto pb-2 min-[420px]:pb-4">
+            <button
+              type="button"
+              onClick={handleEmailSubmit}
+              disabled={loading}
+              className={`w-full py-3.5 min-[420px]:py-4 rounded-2xl font-bold text-sm min-[420px]:text-base shadow-md disabled:opacity-50 transition-all text-center mb-2.5 ${
+                isDark 
+                  ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-zinc-950 shadow-amber-500/25 hover:shadow-amber-500/40' 
+                  : 'bg-[#0d6efd] hover:bg-[#0b5ed7] text-white shadow-md shadow-[#0d6efd]/20'
+              }`}
+            >
+              {loading ? 'Signing in...' : 'Sign in'}
+            </button>
+
+            <button
+              type="button"
+              onClick={onCancel}
+              className={`text-xs min-[420px]:text-sm font-semibold transition-colors ${
+                isDark ? 'text-zinc-400 hover:text-amber-400' : 'text-[#0d6efd] hover:text-[#0b5ed7]'
+              }`}
+            >
+              Back to client booking
+            </button>
+          </div>
         )}
 
       </div>
