@@ -1,8 +1,5 @@
-import React, { useState } from 'react';
-import { 
-  Lock, Mail, KeyRound, AlertCircle, ArrowRight, 
-  Scissors, Eye, EyeOff, Crown, User, Check
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Delete, Mail, KeyRound, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from '../firebase/config';
 import { CurrentStaffUser, StaffMember } from '../types';
@@ -46,16 +43,11 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
 
   const isDidulaAdmin = currentSelectedMember.id === 'staff-1' || currentSelectedMember.name.toLowerCase().includes('didula');
 
-  const handlePinSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPinError('');
-
-    // Admin PINs: 1234 or 7788
-    // Staff PINs: 5678 or 1234
-    const trimmedPin = pin.trim();
-
+  // Verify PIN logic
+  const verifyPin = (pinToTest: string) => {
+    const trimmed = pinToTest.trim();
     if (isDidulaAdmin) {
-      if (trimmedPin === '1234' || trimmedPin === '7788') {
+      if (trimmed === '1234' || trimmed === '7788') {
         const user: CurrentStaffUser = {
           id: currentSelectedMember.id,
           name: currentSelectedMember.name,
@@ -73,11 +65,14 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
 
         onSuccess(user);
       } else {
-        setPinError('Incorrect Admin PIN. (Default Admin PIN is 1234)');
+        setPinError('Incorrect PIN. Try again.');
+        setTimeout(() => {
+          setPin('');
+          setPinError('');
+        }, 800);
       }
     } else {
-      // Staff member login
-      if (trimmedPin === '5678' || trimmedPin === '1234') {
+      if (trimmed === '5678' || trimmed === '1234') {
         const user: CurrentStaffUser = {
           id: currentSelectedMember.id,
           name: currentSelectedMember.name,
@@ -95,11 +90,67 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
 
         onSuccess(user);
       } else {
-        setPinError(`Incorrect PIN for ${currentSelectedMember.name}. (Default Staff PIN is 5678 or 1234)`);
+        setPinError(`Incorrect PIN for ${currentSelectedMember.name.split(' ')[0]}.`);
+        setTimeout(() => {
+          setPin('');
+          setPinError('');
+        }, 800);
       }
     }
   };
 
+  const handleNumberPress = (digit: string) => {
+    if (pin.length < 4) {
+      const newPin = pin + digit;
+      setPin(newPin);
+      setPinError('');
+      if (newPin.length === 4) {
+        setTimeout(() => {
+          verifyPin(newPin);
+        }, 150);
+      }
+    }
+  };
+
+  const handleBackspace = () => {
+    setPin(prev => prev.slice(0, -1));
+    setPinError('');
+  };
+
+  // Listen to physical keyboard events
+  useEffect(() => {
+    if (authMode !== 'pin') return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is focusing an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      if (e.key >= '0' && e.key <= '9') {
+        handleNumberPress(e.key);
+      } else if (e.key === 'Backspace') {
+        handleBackspace();
+      } else if (e.key === 'Enter') {
+        if (pin.length === 4) {
+          verifyPin(pin);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [pin, authMode, selectedStaffId]);
+
+  const handleManualSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pin.length === 4) {
+      verifyPin(pin);
+    } else {
+      setPinError('Please enter 4 digits.');
+    }
+  };
+
+  // Firebase email authentication
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setEmailError('');
@@ -133,7 +184,6 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
 
       onSuccess(user);
     } catch (err: any) {
-      console.warn("Firebase Auth Error:", err);
       if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
         try {
           const newCred = await createUserWithEmailAndPassword(auth, email.trim(), password);
@@ -156,7 +206,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
           onSuccess(user);
           return;
         } catch {
-          setEmailError('Invalid email or password. You can also sign in with Quick PIN.');
+          setEmailError('Invalid email or password. You can also sign in with PIN.');
         }
       } else {
         setEmailError(err.message || 'Authentication failed. Please verify credentials.');
@@ -166,198 +216,204 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-zinc-900 border border-amber-500/30 rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden animate-fade-in">
-        
-        {/* Ambient glow */}
-        <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-48 h-48 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
+  // Staff members for the selector row
+  const activeStaffMembers = staffList.slice(0, 4);
 
-        {/* Header */}
-        <div className="text-center space-y-2 relative">
-          <img 
-            src="/logo.png" 
-            alt="Saloon Aquiness" 
-            className="w-16 h-16 rounded-full mx-auto object-cover ring-2 ring-amber-500/50 shadow-lg shadow-amber-500/20"
-          />
-          <h2 className="font-serif text-2xl font-bold text-white tracking-wide">Saloon Aquiness Staff Portal</h2>
-          <p className="text-xs text-zinc-400">
-            Sign in to manage appointments, customer check-ins, and daily schedules.
-          </p>
+  return (
+    <div className="fixed inset-0 z-50 bg-[#f0f2f6] overflow-y-auto flex flex-col items-center justify-center p-4 sm:p-6 text-zinc-900 select-none">
+      
+      <div className="w-full max-w-[340px] sm:max-w-[360px] flex flex-col items-center">
+        
+        {/* Top Logo Circular Badge */}
+        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-black flex items-center justify-center shadow-md">
+          <span className="text-white font-extrabold text-lg sm:text-xl tracking-tight">AB</span>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex p-1 rounded-xl bg-zinc-950 border border-zinc-800 text-xs font-semibold">
+        {/* Title & Subtitle */}
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight mt-3 text-center">
+          Staff sign in
+        </h1>
+        <p className="text-xs sm:text-sm text-zinc-500 font-medium text-center mt-1 px-2 leading-relaxed">
+          Aquiness Barber · choose your name, then enter your PIN
+        </p>
+
+        {/* Segmented Control Pill Switcher */}
+        <div className="w-full bg-[#e2e5eb] p-1 rounded-xl flex items-center mt-4 sm:mt-5 shadow-inner">
           <button
             type="button"
             onClick={() => { setAuthMode('pin'); setPinError(''); }}
-            className={`flex-1 py-2 rounded-lg transition-all ${
+            className={`flex-1 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-bold text-center transition-all ${
               authMode === 'pin' 
-                ? 'bg-amber-500 text-zinc-950 shadow-sm' 
-                : 'text-zinc-400 hover:text-white'
+                ? 'bg-white text-zinc-900 shadow-sm' 
+                : 'text-zinc-600 hover:text-zinc-900 font-medium'
             }`}
           >
-            🔑 Staff PIN Access
+            PIN
           </button>
           <button
             type="button"
             onClick={() => { setAuthMode('email'); setEmailError(''); }}
-            className={`flex-1 py-2 rounded-lg transition-all ${
+            className={`flex-1 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-bold text-center transition-all ${
               authMode === 'email' 
-                ? 'bg-amber-500 text-zinc-950 shadow-sm' 
-                : 'text-zinc-400 hover:text-white'
+                ? 'bg-white text-zinc-900 shadow-sm' 
+                : 'text-zinc-600 hover:text-zinc-900 font-medium'
             }`}
           >
-            ✉️ Firebase Email Login
+            Email
           </button>
         </div>
 
-        {/* PIN LOGIN FLOW */}
+        {/* PIN MODE FLOW */}
         {authMode === 'pin' ? (
-          <form onSubmit={handlePinSubmit} className="space-y-5">
+          <form onSubmit={handleManualSubmit} className="w-full flex flex-col items-center mt-4 sm:mt-5">
             
-            {/* Step 1: Identity Selection */}
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300 mb-2">
-                1. Select Who Is Signing In
-              </label>
-              
-              <div className="grid grid-cols-2 gap-2.5">
-                {staffList.map((member) => {
-                  const isSelected = selectedStaffId === member.id;
-                  const isDidula = member.id === 'staff-1' || member.name.toLowerCase().includes('didula');
+            {/* Staff Selector (Horizontal Row) */}
+            <div className="grid grid-cols-4 gap-2.5 w-full">
+              {activeStaffMembers.map((member) => {
+                const isSelected = selectedStaffId === member.id;
+                const firstName = member.name.split(' ')[0];
+                const initial = firstName.charAt(0);
+                const isMemberAdmin = member.id === 'staff-1' || member.name.toLowerCase().includes('didula');
 
-                  return (
-                    <button
-                      key={member.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedStaffId(member.id);
-                        setPin('');
-                        setPinError('');
-                      }}
-                      className={`p-3 rounded-2xl text-left border transition-all flex items-center gap-3 relative ${
+                return (
+                  <button
+                    key={member.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedStaffId(member.id);
+                      setPin('');
+                      setPinError('');
+                    }}
+                    className="flex flex-col items-center group focus:outline-none"
+                  >
+                    <div 
+                      className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center font-bold text-lg sm:text-xl transition-all ${
                         isSelected 
-                          ? 'bg-amber-500/15 border-amber-500 ring-1 ring-amber-500/50 shadow-md' 
-                          : 'bg-zinc-950/70 border-zinc-800 hover:border-zinc-700 text-zinc-300'
+                          ? 'bg-[#0d6efd] text-white ring-2 ring-[#0d6efd] ring-offset-2 ring-offset-[#f0f2f6] shadow-md' 
+                          : 'bg-white text-zinc-900 border border-zinc-200 shadow-sm hover:border-zinc-300'
                       }`}
                     >
-                      <div className="relative shrink-0">
-                        <img 
-                          src={member.avatar} 
-                          alt={member.name}
-                          className="w-10 h-10 rounded-full object-cover ring-1 ring-zinc-700"
-                        />
-                        {isDidula && (
-                          <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-zinc-950 flex items-center justify-center text-[10px]">
-                            <Crown className="w-2.5 h-2.5" />
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1">
-                          <p className={`text-xs font-bold truncate ${isSelected ? 'text-amber-400' : 'text-white'}`}>
-                            {member.name}
-                          </p>
-                        </div>
-                        <p className="text-[10px] text-zinc-400 truncate">
-                          {isDidula ? '👑 Admin (Owner)' : '✂️ Stylist'}
-                        </p>
-                      </div>
-
-                      {isSelected && (
-                        <div className="w-5 h-5 rounded-full bg-amber-500 text-zinc-950 flex items-center justify-center shrink-0">
-                          <Check className="w-3 h-3 stroke-[3]" />
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+                      {initial}
+                    </div>
+                    <span className="text-xs font-bold text-zinc-900 mt-1.5 text-center truncate max-w-full">
+                      {firstName}
+                    </span>
+                    <span className="text-[11px] text-zinc-500 text-center truncate max-w-full leading-none">
+                      {isMemberAdmin ? 'Admin' : 'Stylist'}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Step 2: PIN Input */}
-            <div className="pt-1">
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
-                  2. Enter PIN for <span className="text-amber-400 font-bold">{currentSelectedMember.name}</span>
-                </label>
-                <span className="text-[11px] text-zinc-500 font-mono">
-                  {isDidulaAdmin ? 'PIN: 1234' : 'PIN: 5678'}
-                </span>
-              </div>
-
-              <div className="relative max-w-xs mx-auto">
-                <input
-                  type="password"
-                  maxLength={6}
-                  autoFocus
-                  placeholder="• • • •"
-                  value={pin}
-                  onChange={e => setPin(e.target.value)}
-                  className="w-full text-center tracking-[1em] text-2xl font-mono py-3 rounded-2xl bg-zinc-950 border border-zinc-800 text-amber-400 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
-                />
-              </div>
-
-              <p className="text-[11px] text-zinc-400 text-center mt-2.5">
-                {isDidulaAdmin ? (
-                  <span>👑 <strong className="text-amber-400">Admin Privileges:</strong> Full control over service catalog, prices, and staff.</span>
-                ) : (
-                  <span>✂️ <strong className="text-zinc-300">Stylist Privileges:</strong> View schedule, manage chairs, and update appointments.</span>
-                )}
-              </p>
+            {/* 4 PIN Dots Indicator */}
+            <div className="flex items-center justify-center gap-3.5 my-4 sm:my-5">
+              {[0, 1, 2, 3].map((index) => {
+                const isFilled = pin.length > index;
+                return (
+                  <div
+                    key={index}
+                    className={`w-3.5 h-3.5 rounded-full transition-all duration-200 ${
+                      isFilled
+                        ? pinError 
+                          ? 'bg-red-500 scale-125' 
+                          : 'bg-zinc-900 scale-110'
+                        : 'bg-zinc-300'
+                    }`}
+                  />
+                );
+              })}
             </div>
 
+            {/* Error Message if any */}
             {pinError && (
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{pinError}</span>
-              </div>
+              <p className="text-xs text-red-500 font-semibold text-center mb-2 animate-shake">
+                {pinError}
+              </p>
             )}
 
+            {/* Numeric Keypad (Calculator Style) */}
+            <div className="grid grid-cols-3 gap-2.5 sm:gap-3 w-full">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => handleNumberPress(num.toString())}
+                  className="h-12 sm:h-14 rounded-2xl bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-zinc-200/60 text-xl sm:text-2xl font-semibold text-zinc-900 active:bg-zinc-100 active:scale-95 transition-all flex items-center justify-center select-none"
+                >
+                  {num}
+                </button>
+              ))}
+              
+              {/* Bottom row: empty spacer, 0, backspace */}
+              <div />
+
+              <button
+                type="button"
+                onClick={() => handleNumberPress('0')}
+                className="h-12 sm:h-14 rounded-2xl bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-zinc-200/60 text-xl sm:text-2xl font-semibold text-zinc-900 active:bg-zinc-100 active:scale-95 transition-all flex items-center justify-center select-none"
+              >
+                0
+              </button>
+
+              <button
+                type="button"
+                onClick={handleBackspace}
+                className="h-12 sm:h-14 rounded-2xl active:bg-zinc-200/60 active:scale-95 transition-all flex items-center justify-center select-none text-zinc-800"
+                title="Backspace"
+                aria-label="Backspace"
+              >
+                <Delete className="w-6 h-6 stroke-[1.8]" />
+              </button>
+            </div>
+
+            {/* Solid Blue Action Button */}
             <button
               type="submit"
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-zinc-950 font-bold text-sm shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+              className="w-full mt-4 sm:mt-5 py-3.5 sm:py-4 rounded-2xl bg-[#0d6efd] hover:bg-[#0b5ed7] active:bg-[#0a58ca] text-white font-bold text-sm sm:text-base shadow-md shadow-[#0d6efd]/20 active:scale-[0.99] transition-all text-center"
             >
-              <span>Sign In as {currentSelectedMember.name.split(' ')[0]}</span>
-              <ArrowRight className="w-4 h-4" />
+              Sign in as {currentSelectedMember.name.split(' ')[0]}
             </button>
+
           </form>
         ) : (
-          /* FIREBASE EMAIL LOGIN FORM */
-          <form onSubmit={handleEmailSubmit} className="space-y-4 text-xs">
+          /* EMAIL MODE FLOW */
+          <form onSubmit={handleEmailSubmit} className="w-full space-y-3.5 mt-5">
             <div>
-              <label className="block text-zinc-300 font-semibold mb-1">Staff / Manager Email</label>
+              <label className="block text-xs font-semibold text-zinc-600 mb-1">
+                Staff Email
+              </label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Mail className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="email"
                   required
                   placeholder="didula@saloonaquiness.lk"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-zinc-200 text-zinc-900 text-sm placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#0d6efd]"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-zinc-300 font-semibold mb-1">Password</label>
+              <label className="block text-xs font-semibold text-zinc-600 mb-1">
+                Password
+              </label>
               <div className="relative">
-                <KeyRound className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <KeyRound className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
                   placeholder="••••••••"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
+                  className="w-full pl-10 pr-10 py-3 rounded-xl bg-white border border-zinc-200 text-zinc-900 text-sm placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#0d6efd]"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -365,7 +421,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
             </div>
 
             {emailError && (
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{emailError}</span>
               </div>
@@ -374,23 +430,21 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-zinc-950 font-bold text-xs shadow-md shadow-amber-500/25 hover:shadow-amber-500/40 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+              className="w-full py-3.5 rounded-2xl bg-[#0d6efd] hover:bg-[#0b5ed7] text-white font-bold text-sm shadow-md disabled:opacity-50 transition-all text-center"
             >
-              {loading ? <span>Authenticating with Firebase...</span> : <span>Sign In with Firebase</span>}
+              {loading ? 'Signing in...' : 'Sign In with Email'}
             </button>
           </form>
         )}
 
-        <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between text-xs">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="text-zinc-400 hover:text-white transition-colors"
-          >
-            ← Return to Client Booking
-          </button>
-          <span className="text-[11px] text-zinc-500">Saloon Aquiness Security</span>
-        </div>
+        {/* Back to Client Booking Link */}
+        <button
+          type="button"
+          onClick={onCancel}
+          className="mt-4 text-xs sm:text-sm font-semibold text-[#0d6efd] hover:text-[#0b5ed7] transition-colors"
+        >
+          Back to client booking
+        </button>
 
       </div>
     </div>
