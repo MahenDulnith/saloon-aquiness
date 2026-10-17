@@ -203,10 +203,10 @@ export const FirebaseService = {
     if (!isFirebaseConfigured()) return localApt;
 
     try {
-      await setDoc(doc(db, COLLECTIONS.APPOINTMENTS, localApt.id), {
+      await setDoc(doc(db, COLLECTIONS.APPOINTMENTS, localApt.id), sanitizeForFirestore({
         ...localApt,
         firestoreTimestamp: serverTimestamp()
-      });
+      }));
     } catch (e) {
       console.error("Firestore error saving appointment:", e);
     }

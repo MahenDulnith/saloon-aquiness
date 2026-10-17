@@ -111,6 +111,7 @@ export const App: React.FC = () => {
     // Real-time listener for live updates across all devices
     const unsubscribe = FirebaseService.subscribeToAppointments((liveApts) => {
       setAppointments(liveApts);
+      StorageService.setAppointments(liveApts);
     });
 
     // Listen to local storage events

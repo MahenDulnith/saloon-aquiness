@@ -119,6 +119,10 @@ export const StorageService = {
     return list;
   },
 
+  setAppointments(list: Appointment[]): void {
+    setItem(STORAGE_KEYS.APPOINTMENTS, list);
+  },
+
   createAppointment(aptData: Omit<Appointment, 'id' | 'createdAt' | 'status'> & { status?: AppointmentStatus }): Appointment {
     const current = this.getAppointments();
     const newApt: Appointment = {

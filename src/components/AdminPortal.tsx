@@ -32,7 +32,8 @@ import {
   AlertCircle,
   KeyRound,
   Eye,
-  EyeOff
+  EyeOff,
+  MessageSquare
 } from 'lucide-react';
 import { sendPasswordResetEmail, updatePassword } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from '../firebase/config';
@@ -357,47 +358,91 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     });
   }, [appointments, queueScope, searchQuery, currentUser]);
 
-  // Unique clients derived from appointments
-  const clientsList = useMemo(() => {
-    const map = new Map<string, {
-      name: string;
-      phone: string;
-      email?: string;
-      totalVisits: number;
-      totalSpend: number;
-      lastVisit: string;
-      lastService: string;
-    }>();
+  interface ClientRecord {
+    id: string;
+    name: string;
+    phone: string;
+    email?: string;
+    totalVisits: number;
+    totalSpend: number;
+    lastVisit: string;
+    lastService: string;
+    history: Appointment[];
+  }
+
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
+  const [selectedClientDetail, setSelectedClientDetail] = useState<ClientRecord | null>(null);
+
+  // Unique clients derived from all appointments (online client bookings & walk-ins)
+  const clientsList = useMemo<ClientRecord[]>(() => {
+    const map = new Map<string, ClientRecord>();
 
     appointments.forEach(a => {
-      const key = a.customerPhone || a.customerName;
+      // Clean phone number: keep digits only
+      const phoneDigits = a.customerPhone ? a.customerPhone.replace(/\D/g, '') : '';
+      const hasValidPhone = phoneDigits.length >= 7 && a.customerPhone.toLowerCase() !== 'n/a';
+      
+      // Deduplicate key: by phone if available; otherwise by normalized customer name
+      const key = hasValidPhone 
+        ? `phone_${phoneDigits}` 
+        : `name_${a.customerName.trim().toLowerCase()}`;
+
+      const isCompleted = a.status === 'completed' || a.status === 'confirmed' || a.status === 'in_progress';
+      const cleanPhone = hasValidPhone ? a.customerPhone.trim() : (a.customerPhone === 'N/A' || !a.customerPhone ? '' : a.customerPhone.trim());
+
       if (!map.has(key)) {
         map.set(key, {
+          id: key,
           name: a.customerName,
-          phone: a.customerPhone,
+          phone: cleanPhone,
           email: a.customerEmail,
           totalVisits: 1,
-          totalSpend: a.servicePrice,
+          totalSpend: isCompleted ? (a.servicePrice || 0) : 0,
           lastVisit: a.date,
-          lastService: a.serviceName
+          lastService: a.serviceName,
+          history: [a]
         });
       } else {
         const item = map.get(key)!;
         item.totalVisits += 1;
-        item.totalSpend += a.servicePrice;
-        if (a.date > item.lastVisit) {
+        if (isCompleted) {
+          item.totalSpend += (a.servicePrice || 0);
+        }
+        // If existing record had default walk-in name but current has a real name, use the real name
+        if (a.customerName && a.customerName !== 'Walk-in Client' && item.name === 'Walk-in Client') {
+          item.name = a.customerName;
+        }
+        if (cleanPhone && !item.phone) {
+          item.phone = cleanPhone;
+        }
+        if (a.customerEmail && !item.email) {
+          item.email = a.customerEmail;
+        }
+        if (a.date >= item.lastVisit) {
           item.lastVisit = a.date;
           item.lastService = a.serviceName;
         }
+        item.history.push(a);
       }
     });
 
     return Array.from(map.values()).sort((a, b) => b.totalVisits - a.totalVisits);
   }, [appointments]);
 
-  // Status updates
-  const handleUpdateStatus = (id: string, status: AppointmentStatus) => {
-    StorageService.updateAppointmentStatus(id, status);
+  // Filtered clients based on search query
+  const filteredClients = useMemo(() => {
+    if (!clientSearchQuery.trim()) return clientsList;
+    const q = clientSearchQuery.toLowerCase().trim();
+    return clientsList.filter(c => 
+      c.name.toLowerCase().includes(q) || 
+      c.phone.includes(q) || 
+      c.lastService.toLowerCase().includes(q)
+    );
+  }, [clientsList, clientSearchQuery]);
+
+  // Status updates - synced live to Firestore & localStorage
+  const handleUpdateStatus = async (id: string, status: AppointmentStatus) => {
+    await FirebaseService.updateAppointmentStatus(id, status);
     onAppointmentsUpdated();
   };
 
@@ -407,8 +452,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       message: 'Are you sure you want to permanently delete this appointment record?',
       confirmText: 'Delete',
       variant: 'danger',
-      onConfirm: () => {
-        StorageService.deleteAppointment(id);
+      onConfirm: async () => {
+        await FirebaseService.deleteAppointment(id);
         onAppointmentsUpdated();
         setActionAppointment(null);
       }
@@ -1378,55 +1423,105 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] app-header-safe-top"
             >
               <div className="w-full max-w-md mx-auto px-4 pt-1.5 pb-2.5">
-                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-tight">
-                  Clients
-                </h1>
-                <p className="text-xs sm:text-sm font-medium text-zinc-500 mt-0.5">
-                  Client directory & booking history ({clientsList.length})
-                </p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-tight">
+                      Clients
+                    </h1>
+                    <p className="text-xs sm:text-sm font-medium text-zinc-500 mt-0.5">
+                      Client directory & booking history ({clientsList.length})
+                    </p>
+                  </div>
+                  <span className="text-xs font-bold text-[#0d6efd] bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
+                    {clientsList.length} total
+                  </span>
+                </div>
+
+                {/* Search Client Bar */}
+                <div className="relative mt-2.5">
+                  <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search client by name, phone, or service..."
+                    value={clientSearchQuery}
+                    onChange={e => setClientSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-9 py-2 bg-[#e5e9f0]/70 rounded-xl text-xs sm:text-sm placeholder-zinc-500 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#0d6efd] transition-all"
+                  />
+                  {clientSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setClientSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
             </header>
 
             {/* SCROLLABLE MAIN CONTENT */}
             <main className="w-full max-w-md mx-auto flex-1 px-4 pt-3.5 pb-28">
               <div className="space-y-3">
-                {clientsList.length === 0 ? (
+                {filteredClients.length === 0 ? (
                   <div className="bg-white rounded-2xl p-8 text-center text-zinc-400 border border-zinc-200/60 shadow-sm mt-3">
                     <Users className="w-8 h-8 mx-auto text-zinc-300 mb-2" />
                     <p className="font-semibold text-zinc-700">No client records found</p>
-                    <p className="text-xs text-zinc-400 mt-1">Clients will appear once bookings are placed.</p>
+                    <p className="text-xs text-zinc-400 mt-1">
+                      {clientSearchQuery ? 'No client matches your search filter.' : 'Clients will appear once bookings are placed.'}
+                    </p>
                   </div>
                 ) : (
-                  clientsList.map((client, idx) => (
-                    <div
-                      key={idx}
-                      className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-200/60 flex items-center justify-between gap-3"
-                    >
-                      <div className="w-10 h-10 rounded-full bg-zinc-100 text-zinc-700 font-bold flex items-center justify-center shrink-0">
-                        {client.name.charAt(0)}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-bold text-sm text-zinc-900 truncate">
-                          {client.name}
-                        </h4>
-                        <p className="text-xs text-zinc-500">
-                          {client.phone}
-                        </p>
-                        <p className="text-[11px] text-zinc-400 mt-0.5 truncate">
-                          {client.totalVisits} visit{client.totalVisits > 1 ? 's' : ''} · Spent Rs. {client.totalSpend.toLocaleString()}
-                        </p>
-                      </div>
-
-                      <a
-                        href={`tel:${client.phone}`}
-                        className="w-9 h-9 rounded-full bg-blue-50 text-[#0d6efd] flex items-center justify-center hover:bg-blue-100 transition-colors shrink-0"
-                        title={`Call ${client.name}`}
+                  filteredClients.map((client) => {
+                    const hasValidPhone = client.phone && client.phone.trim() !== '' && client.phone !== 'N/A';
+                    return (
+                      <div
+                        key={client.id}
+                        onClick={() => setSelectedClientDetail(client)}
+                        className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-200/60 flex items-center justify-between gap-3 cursor-pointer hover:bg-zinc-50/70 transition-colors group"
                       >
-                        <Phone className="w-4 h-4" />
-                      </a>
-                    </div>
-                  ))
+                        <div className="w-10 h-10 rounded-full bg-blue-50 text-[#0d6efd] font-black text-sm flex items-center justify-center shrink-0 border border-blue-100">
+                          {client.name.charAt(0).toUpperCase()}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <h4 className="font-bold text-sm text-zinc-900 truncate group-hover:text-[#0d6efd] transition-colors">
+                              {client.name}
+                            </h4>
+                            {client.totalVisits >= 3 && (
+                              <span className="px-1.5 py-0.2 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold">
+                                Regular
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-zinc-500 mt-0.5 truncate">
+                            {hasValidPhone ? client.phone : 'Walk-in (No Phone)'}
+                          </p>
+                          <p className="text-[11px] text-zinc-400 mt-0.5 truncate">
+                            {client.totalVisits} visit{client.totalVisits > 1 ? 's' : ''} · Spent Rs. {client.totalSpend.toLocaleString()} · Last: {client.lastService}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+                          {hasValidPhone ? (
+                            <a
+                              href={`tel:${client.phone}`}
+                              className="w-9 h-9 rounded-full bg-blue-50 text-[#0d6efd] flex items-center justify-center hover:bg-blue-100 active:scale-95 transition-all shadow-xs"
+                              title={`Call ${client.name}`}
+                            >
+                              <Phone className="w-4 h-4" />
+                            </a>
+                          ) : (
+                            <span className="w-9 h-9 rounded-full bg-zinc-100 text-zinc-300 flex items-center justify-center">
+                              <Phone className="w-4 h-4" />
+                            </span>
+                          )}
+                          <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-zinc-600 transition-colors" />
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </main>
@@ -3035,9 +3130,141 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         </div>
       )}
 
-      {/* iOS / Mobile App Install Modal */}
-      {showInstallGuide && (
-        <IosInstallModal onClose={() => setShowInstallGuide(false)} />
+      {/* ----------------- CLIENT DETAIL MODAL ----------------- */}
+      {selectedClientDetail && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
+          onClick={() => setSelectedClientDetail(null)}
+        >
+          <div 
+            className="bg-white rounded-3xl w-full max-w-md max-h-[88vh] overflow-hidden shadow-2xl flex flex-col border border-zinc-200 animate-in zoom-in-95 duration-200"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-4 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-12 h-12 rounded-full bg-[#0d6efd] text-white font-black text-lg flex items-center justify-center shrink-0 shadow-sm">
+                  {selectedClientDetail.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-extrabold text-base text-zinc-900 leading-tight truncate">
+                    {selectedClientDetail.name}
+                  </h3>
+                  <p className="text-xs text-zinc-500 mt-0.5 truncate">
+                    {selectedClientDetail.phone || 'Walk-in (No Phone Number)'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedClientDetail(null)}
+                className="w-8 h-8 rounded-full bg-zinc-200/70 hover:bg-zinc-200 text-zinc-600 flex items-center justify-center transition-colors shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body: Stats & Booking History */}
+            <div className="p-4 overflow-y-auto space-y-4">
+              {/* Quick Actions (Call & WhatsApp) */}
+              {selectedClientDetail.phone && selectedClientDetail.phone !== 'N/A' && (
+                <div className="grid grid-cols-2 gap-2">
+                  <a
+                    href={`tel:${selectedClientDetail.phone}`}
+                    className="py-2.5 px-3 bg-[#0d6efd] hover:bg-[#0b5ed7] text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-xs transition-colors"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>Call Client</span>
+                  </a>
+                  <a
+                    href={`https://wa.me/${selectedClientDetail.phone.replace(/\D/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-xs transition-colors"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>WhatsApp</span>
+                  </a>
+                </div>
+              )}
+
+              {/* Lifetime Stats */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="bg-zinc-50 p-3 rounded-2xl border border-zinc-100 text-center">
+                  <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Total Visits</span>
+                  <span className="text-xl font-black text-zinc-900 mt-0.5 block">
+                    {selectedClientDetail.totalVisits}
+                  </span>
+                </div>
+                <div className="bg-zinc-50 p-3 rounded-2xl border border-zinc-100 text-center">
+                  <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Total Spent</span>
+                  <span className="text-xl font-black text-zinc-900 mt-0.5 block">
+                    Rs. {selectedClientDetail.totalSpend.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Booking History */}
+              <div>
+                <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase block mb-2 px-0.5">
+                  BOOKING HISTORY ({selectedClientDetail.history.length})
+                </span>
+                <div className="space-y-2 max-h-[38vh] overflow-y-auto pr-1">
+                  {selectedClientDetail.history
+                    .slice()
+                    .sort((a, b) => (b.date + b.timeSlot).localeCompare(a.date + a.timeSlot))
+                    .map(apt => (
+                      <div
+                        key={apt.id}
+                        className="bg-white p-3 rounded-xl border border-zinc-200/70 shadow-xs flex items-center justify-between gap-3"
+                      >
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-xs text-zinc-900">{apt.serviceName}</span>
+                            {apt.isWalkIn && (
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-800">
+                                Walk-in
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-zinc-500 mt-0.5">
+                            {formatSriLankaDateStr(apt.date)} · {apt.timeSlot} · {apt.staffName.split(' ')[0]}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="font-bold text-xs text-zinc-900 block">
+                            Rs. {apt.servicePrice.toLocaleString()}
+                          </span>
+                          <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full inline-block mt-0.5 ${
+                            apt.status === 'completed'
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : apt.status === 'in_progress'
+                                ? 'bg-purple-50 text-purple-700'
+                                : apt.status === 'confirmed'
+                                  ? 'bg-blue-50 text-blue-700'
+                                  : 'bg-zinc-100 text-zinc-600'
+                          }`}>
+                            {apt.status === 'in_progress' ? 'In Chair' : apt.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3 border-t border-zinc-100 bg-zinc-50 text-center">
+              <button
+                type="button"
+                onClick={() => setSelectedClientDetail(null)}
+                className="w-full py-2.5 bg-zinc-200 hover:bg-zinc-300 text-zinc-800 font-bold text-xs rounded-xl transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ----------------- MODERN IN-APP CONFIRM & ALERT MODAL ----------------- */}
