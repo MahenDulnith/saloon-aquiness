@@ -813,17 +813,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {/* + Walk-in Button */}
-                  <button
-                    type="button"
-                    onClick={openWalkInModal}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-[#0d6efd] hover:bg-[#0b5ed7] text-white rounded-full font-bold text-xs shadow-xs active:scale-95 transition-all"
-                    title="Record Walk-in Customer / Direct Job"
-                  >
-                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                    <span>+ Walk-in</span>
-                  </button>
-
                   {/* User Avatar Circle */}
                   <button
                     type="button"
@@ -851,26 +840,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
             {/* SCROLLABLE MAIN CONTENT */}
             <main className="w-full max-w-md mx-auto flex-1 px-4 pt-3.5 pb-28">
-              {/* Quick Walk-in Logger Bar */}
-              <div className="bg-gradient-to-r from-blue-50/90 to-amber-50/70 border border-blue-200/80 rounded-2xl p-3 flex items-center justify-between shadow-xs mb-3.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-[#0d6efd] text-white flex items-center justify-center shrink-0 shadow-xs">
-                    <Plus className="w-4 h-4 stroke-[3]" />
-                  </div>
-                  <div>
-                    <span className="font-bold text-xs text-zinc-900 block">Walk-in Customer / Direct Job?</span>
-                    <span className="text-[11px] text-zinc-500">Log villager haircut or add to queue</span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={openWalkInModal}
-                  className="px-3.5 py-1.5 bg-[#0d6efd] hover:bg-[#0b5ed7] text-white font-bold text-xs rounded-xl shadow-xs active:scale-95 transition-all whitespace-nowrap"
-                >
-                  + Add Job
-                </button>
-              </div>
-
               {/* Metrics Card */}
               <div className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-200/60">
               <div className="grid grid-cols-3 text-center">
@@ -947,25 +916,37 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </button>
             </div>
 
-            {/* Search Input Pill */}
-            <div className="relative mt-3">
-              <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Search client, phone, service"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-[#e5e9f0]/70 rounded-xl text-sm placeholder-zinc-500 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#0d6efd] transition-all"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
+            {/* Search Input and Add Job Button Row */}
+            <div className="flex items-center gap-2 mt-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search client, phone, service"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-[#e5e9f0]/70 rounded-xl text-sm placeholder-zinc-500 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#0d6efd] transition-all"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={openWalkInModal}
+                className="h-10 px-3.5 bg-[#0d6efd] hover:bg-[#0b5ed7] text-white font-bold text-xs sm:text-sm rounded-xl shrink-0 flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all whitespace-nowrap"
+                title="Add Walk-in or Direct Job"
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span>Add Job</span>
+              </button>
             </div>
 
             {/* Appointment Cards List */}
