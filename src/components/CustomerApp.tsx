@@ -150,11 +150,16 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
     });
   };
 
-  // Sync meta theme-color with active theme
+  // Sync meta theme-color and html dark class with active theme
   useEffect(() => {
     const metaTheme = document.querySelector('meta[name="theme-color"]');
     if (metaTheme) {
       metaTheme.setAttribute('content', theme === 'light' ? '#f0f2f6' : '#09090b');
+    }
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
     }
   }, [theme]);
 
@@ -1316,7 +1321,9 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 <div className={`p-5 rounded-3xl border text-left space-y-3.5 shadow-xl ${
                   isDark ? 'bg-[#18181b] border-zinc-800' : 'bg-white border-zinc-200/80'
                 }`}>
-                  <div className="flex items-center justify-between pb-3 border-b border-zinc-200/70 dark:border-zinc-800">
+                  <div className={`flex items-center justify-between pb-3 border-b ${
+                    isDark ? 'border-zinc-800' : 'border-zinc-200/70'
+                  }`}>
                     <div>
                       <span className={`text-[10px] uppercase font-bold block ${isDark ? 'text-[#e5a43b]' : 'text-blue-600'}`}>
                         AQUINESS SALON PASS
@@ -1347,7 +1354,9 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                     </div>
                   </div>
 
-                  <div className="pt-2 border-t border-zinc-200/70 dark:border-zinc-800 flex items-center justify-between">
+                  <div className={`pt-2 border-t flex items-center justify-between ${
+                    isDark ? 'border-zinc-800' : 'border-zinc-200/70'
+                  }`}>
                     <span className="text-xs text-zinc-400">Total (Pay at salon)</span>
                     <span className={`text-base font-extrabold ${isDark ? 'text-[#e5a43b]' : 'text-zinc-900'}`}>
                       Rs. {confirmedBooking.servicePrice.toLocaleString()}
@@ -1548,13 +1557,15 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
               </div>
 
               {/* Theme Switcher Card */}
-              <div className={`p-4 rounded-2xl border space-y-2 ${
-                isDark ? 'bg-[#18181b] border-zinc-800' : 'bg-white border-zinc-200/80 shadow-sm'
+              <div className={`p-4 rounded-2xl border space-y-2.5 ${
+                isDark ? 'bg-[#18181b] border-zinc-800/80' : 'bg-white border-zinc-200/80 shadow-sm'
               }`}>
-                <span className="text-xs font-bold uppercase tracking-wider text-zinc-400 block">
+                <span className={`text-xs font-bold uppercase tracking-wider block ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
                   APPEARANCE
                 </span>
-                <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-zinc-100 dark:bg-zinc-800">
+                <div className={`grid grid-cols-2 gap-1.5 p-1 rounded-xl transition-colors ${
+                  isDark ? 'bg-zinc-900/90 border border-zinc-800' : 'bg-[#e2e5eb]'
+                }`}>
                   <button
                     type="button"
                     onClick={() => {
@@ -1562,11 +1573,13 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                       try { localStorage.setItem('aquiness_customer_theme', 'dark'); } catch {}
                     }}
                     className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                      isDark ? 'bg-zinc-900 text-[#e5a43b] shadow-sm' : 'text-zinc-600'
+                      isDark 
+                        ? 'bg-[#241c10] text-[#e5a43b] shadow-sm border border-[#e5a43b]/30' 
+                        : 'text-zinc-600 hover:text-zinc-900'
                     }`}
                   >
-                    <Moon className="w-3.5 h-3.5" />
-                    Dark & Gold
+                    <Moon className="w-3.5 h-3.5 stroke-[2.2]" />
+                    <span>Dark & Gold</span>
                   </button>
                   <button
                     type="button"
@@ -1575,11 +1588,13 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                       try { localStorage.setItem('aquiness_customer_theme', 'light'); } catch {}
                     }}
                     className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                      !isDark ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-400'
+                      !isDark 
+                        ? 'bg-white text-zinc-900 shadow-sm' 
+                        : 'text-zinc-400 hover:text-zinc-200'
                     }`}
                   >
-                    <Sun className="w-3.5 h-3.5" />
-                    Clean Light
+                    <Sun className="w-3.5 h-3.5 stroke-[2.2]" />
+                    <span>Clean Light</span>
                   </button>
                 </div>
               </div>
@@ -1781,7 +1796,9 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 isDark ? 'bg-[#18181b] text-white border border-zinc-800' : 'bg-white text-zinc-900'
               }`}
             >
-              <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
+              <div className={`flex items-center justify-between pb-3 border-b ${
+                isDark ? 'border-zinc-800' : 'border-zinc-200'
+              }`}>
                 <span className={`text-xs uppercase font-extrabold ${isDark ? 'text-[#e5a43b]' : 'text-blue-600'}`}>
                   APPOINTMENT PASS
                 </span>
@@ -1796,19 +1813,27 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
               </div>
 
               <div className="space-y-1.5 text-xs">
-                <div className="flex justify-between py-1 border-b border-zinc-100 dark:border-zinc-800">
+                <div className={`flex justify-between py-1 border-b ${
+                  isDark ? 'border-zinc-800/80' : 'border-zinc-100'
+                }`}>
                   <span className="text-zinc-400">Service</span>
                   <span className="font-bold">{viewingPass.serviceName}</span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-zinc-100 dark:border-zinc-800">
+                <div className={`flex justify-between py-1 border-b ${
+                  isDark ? 'border-zinc-800/80' : 'border-zinc-100'
+                }`}>
                   <span className="text-zinc-400">Specialist</span>
                   <span className="font-bold">{viewingPass.staffName}</span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-zinc-100 dark:border-zinc-800">
+                <div className={`flex justify-between py-1 border-b ${
+                  isDark ? 'border-zinc-800/80' : 'border-zinc-100'
+                }`}>
                   <span className="text-zinc-400">Date & Time</span>
                   <span className="font-bold">{viewingPass.date} · {viewingPass.timeSlot}</span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-zinc-100 dark:border-zinc-800">
+                <div className={`flex justify-between py-1 border-b ${
+                  isDark ? 'border-zinc-800/80' : 'border-zinc-100'
+                }`}>
                   <span className="text-zinc-400">Status</span>
                   <span className="font-bold uppercase text-emerald-500">{viewingPass.status}</span>
                 </div>
