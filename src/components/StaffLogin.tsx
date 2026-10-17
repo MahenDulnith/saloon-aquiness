@@ -389,7 +389,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
 
           {/* 5. 4 PIN Dots Indicator */}
           {authMode === 'pin' && (
-            <div className="flex items-center justify-center gap-3.5 my-5 sm:my-6">
+            <div className="flex items-center justify-center gap-4 mt-12 sm:mt-16 mb-6 sm:mb-8">
               {[0, 1, 2, 3].map((index) => {
                 const isFilled = pin.length > index;
                 return (
@@ -404,7 +404,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
                             : 'bg-zinc-900 scale-110'
                         : isDark 
                           ? 'bg-zinc-800 border border-zinc-700' 
-                          : 'bg-zinc-300'
+                          : 'bg-[#d0d4dc]'
                     }`}
                   />
                 );
