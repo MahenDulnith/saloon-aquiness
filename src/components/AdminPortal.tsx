@@ -29,8 +29,13 @@ import {
   CheckCircle2,
   Smartphone,
   AlertTriangle,
-  AlertCircle
+  AlertCircle,
+  KeyRound,
+  Eye,
+  EyeOff
 } from 'lucide-react';
+import { sendPasswordResetEmail, updatePassword } from 'firebase/auth';
+import { auth, isFirebaseConfigured } from '../firebase/config';
 import { Appointment, SalonService, StaffMember, AppointmentStatus, ServiceCategory, CurrentStaffUser } from '../types';
 import { StorageService } from '../services/storage';
 import { FirebaseService } from '../services/firebaseService';
@@ -367,6 +372,84 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
+  // Staff Credentials & Security state
+  const [showStaffPin, setShowStaffPin] = useState<boolean>(false);
+  const [resetEmailSent, setResetEmailSent] = useState<boolean>(false);
+  const [resetEmailLoading, setResetEmailLoading] = useState<boolean>(false);
+  const [newDirectPassword, setNewDirectPassword] = useState<string>('');
+  const [showDirectPassword, setShowDirectPassword] = useState<boolean>(false);
+  const [directPasswordLoading, setDirectPasswordLoading] = useState<boolean>(false);
+  const [directPasswordStatus, setDirectPasswordStatus] = useState<string | null>(null);
+
+  const handleSendPasswordReset = async (targetEmail: string) => {
+    const emailToSend = targetEmail.trim() || 'didula@saloonaquiness.lk';
+    setResetEmailLoading(true);
+    try {
+      if (isFirebaseConfigured()) {
+        await sendPasswordResetEmail(auth, emailToSend);
+      }
+      setResetEmailSent(true);
+      setTimeout(() => setResetEmailSent(false), 6000);
+      showAlert({
+        title: 'Reset Email Dispatched',
+        message: `A password reset link was sent to ${emailToSend}. Please check your inbox and follow the link to set your new password.`,
+        variant: 'info'
+      });
+    } catch (err: any) {
+      showAlert({
+        title: 'Could Not Send Email',
+        message: err?.message || 'Failed to send password reset email. Please ensure Firebase is active.',
+        variant: 'danger'
+      });
+    } finally {
+      setResetEmailLoading(false);
+    }
+  };
+
+  const handleUpdateDirectPassword = async () => {
+    if (!newDirectPassword || newDirectPassword.length < 6) {
+      showAlert({
+        title: 'Invalid Password',
+        message: 'Password must be at least 6 characters long.',
+        variant: 'warning'
+      });
+      return;
+    }
+    setDirectPasswordLoading(true);
+    setDirectPasswordStatus(null);
+    try {
+      if (auth.currentUser) {
+        await updatePassword(auth.currentUser, newDirectPassword);
+        setDirectPasswordStatus('Password updated successfully!');
+        setNewDirectPassword('');
+        showAlert({
+          title: 'Password Updated',
+          message: 'Your account password has been updated successfully in Firebase Authentication.',
+          variant: 'info'
+        });
+      } else {
+        await handleSendPasswordReset(staffFormEmail || 'didula@saloonaquiness.lk');
+      }
+    } catch (err: any) {
+      if (err.code === 'auth/requires-recent-login') {
+        showAlert({
+          title: 'Recent Login Required',
+          message: 'For security reasons, changing your password directly requires a recent login. A secure reset link has been dispatched to your email instead.',
+          variant: 'warning'
+        });
+        await handleSendPasswordReset(staffFormEmail || 'didula@saloonaquiness.lk');
+      } else {
+        showAlert({
+          title: 'Password Update Failed',
+          message: err?.message || 'Could not update password directly. Use the Send Password Reset Link button instead.',
+          variant: 'danger'
+        });
+      }
+    } finally {
+      setDirectPasswordLoading(false);
+    }
+  };
+
   const openNewStaffModal = () => {
     setEditingStaff(null);
     setStaffFormName('');
@@ -376,6 +459,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setStaffFormPin('1234');
     setStaffFormActive(true);
     setStaffFormAvatar('');
+    setShowStaffPin(false);
+    setResetEmailSent(false);
+    setNewDirectPassword('');
+    setShowDirectPassword(false);
+    setDirectPasswordStatus(null);
     setShowStaffModal(true);
   };
 
@@ -388,6 +476,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setStaffFormPin(st.pin || '1234');
     setStaffFormActive(st.available !== false);
     setStaffFormAvatar(st.avatar || '');
+    setShowStaffPin(false);
+    setResetEmailSent(false);
+    setNewDirectPassword('');
+    setShowDirectPassword(false);
+    setDirectPasswordStatus(null);
     setShowStaffModal(true);
   };
 
@@ -1181,6 +1274,27 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </span>
                   <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
                     
+                    {/* Change PIN & Password */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const me = staff.find(s => s.id === activeUser.id) || 
+                                   staff.find(s => s.name.toLowerCase().includes('didula')) || 
+                                   staff[0];
+                        if (me) openEditStaffModal(me);
+                      }}
+                      className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <KeyRound className="w-5 h-5 text-[#0d6efd]" />
+                        <div>
+                          <span className="font-bold text-sm text-zinc-900 block">Change PIN & Password</span>
+                          <span className="text-xs text-zinc-500">Update salon quick PIN or reset account password</span>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-zinc-400" />
+                    </button>
+
                     {/* Exit to Client Booking Website */}
                     {onExitToClientWebsite && (
                       <button
@@ -1742,18 +1856,96 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </div>
 
                   {/* PIN */}
-                  <div className="p-3.5 flex items-center justify-between">
-                    <label className="text-sm font-bold text-zinc-900">Sign-in PIN</label>
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="password"
-                        maxLength={4}
-                        placeholder="4 digits"
-                        value={staffFormPin}
-                        onChange={e => setStaffFormPin(e.target.value.replace(/\D/g, ''))}
-                        className="w-20 text-right text-sm text-zinc-900 placeholder-zinc-400 font-mono tracking-widest focus:outline-none"
-                      />
-                      <ChevronRight className="w-4 h-4 text-zinc-400" />
+                  <div className="p-3.5 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-sm font-bold text-zinc-900 block">Sign-in PIN</label>
+                        <span className="text-[11px] text-zinc-500">Quick 4-digit code for salon devices</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 bg-zinc-50 px-2.5 py-1 rounded-xl border border-zinc-200">
+                        <input
+                          type={showStaffPin ? 'text' : 'password'}
+                          maxLength={4}
+                          placeholder="4 digits"
+                          value={staffFormPin}
+                          onChange={e => setStaffFormPin(e.target.value.replace(/\D/g, ''))}
+                          className="w-16 text-center text-sm font-bold text-zinc-900 placeholder-zinc-400 font-mono tracking-widest focus:outline-none bg-transparent"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowStaffPin(!showStaffPin)}
+                          className="p-1 text-zinc-400 hover:text-zinc-600 transition-colors"
+                          title={showStaffPin ? 'Hide PIN' : 'Show PIN'}
+                        >
+                          {showStaffPin ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Account Password & Security */}
+                  <div className="p-3.5 space-y-2.5 bg-zinc-50/80 rounded-2xl mx-1 my-1 border border-zinc-200/80">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <KeyRound className="w-4 h-4 text-[#0d6efd]" />
+                        <span className="text-xs font-bold text-zinc-900 uppercase tracking-wider">Account Password</span>
+                      </div>
+                      <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full">Email Login</span>
+                    </div>
+
+                    <p className="text-xs text-zinc-600 leading-relaxed">
+                      For sign-in with email <strong>{staffFormEmail.trim() || 'didula@saloonaquiness.lk'}</strong>. Send a password reset link to your email or save a new password directly below.
+                    </p>
+
+                    <div className="space-y-2 pt-1">
+                      <button
+                        type="button"
+                        disabled={resetEmailLoading}
+                        onClick={() => handleSendPasswordReset(staffFormEmail.trim() || 'didula@saloonaquiness.lk')}
+                        className="w-full py-2.5 px-3 bg-white border border-zinc-300 hover:border-zinc-400 text-zinc-800 font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-50"
+                      >
+                        <Mail className="w-4 h-4 text-[#0d6efd]" />
+                        <span>
+                          {resetEmailLoading ? 'Sending link...' : resetEmailSent ? '✓ Reset Link Sent to Email!' : 'Send Password Reset Link to Email'}
+                        </span>
+                      </button>
+
+                      {/* Direct update input */}
+                      <div className="pt-2 border-t border-zinc-200 space-y-2">
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type={showDirectPassword ? 'text' : 'password'}
+                            placeholder="Type new password (min 6 chars)"
+                            value={newDirectPassword}
+                            onChange={e => setNewDirectPassword(e.target.value)}
+                            className="flex-1 bg-white border border-zinc-300 rounded-xl px-3 py-2 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-[#0d6efd]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowDirectPassword(!showDirectPassword)}
+                            className="p-2 text-zinc-500 hover:text-zinc-700 bg-white border border-zinc-300 rounded-xl"
+                            title={showDirectPassword ? 'Hide password' : 'Show password'}
+                          >
+                            {showDirectPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        {newDirectPassword.length > 0 && (
+                          <button
+                            type="button"
+                            disabled={directPasswordLoading || newDirectPassword.length < 6}
+                            onClick={handleUpdateDirectPassword}
+                            className="w-full py-2 bg-[#0d6efd] text-white font-bold text-xs rounded-xl hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-sm"
+                          >
+                            <Check className="w-4 h-4" />
+                            <span>{directPasswordLoading ? 'Updating Password...' : 'Save New Password Now'}</span>
+                          </button>
+                        )}
+                        {directPasswordStatus && (
+                          <p className="text-[11px] text-emerald-600 font-bold text-center">
+                            {directPasswordStatus}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
 

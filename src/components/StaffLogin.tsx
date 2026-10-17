@@ -89,8 +89,11 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
   // Verify PIN logic
   const verifyPin = (pinToTest: string) => {
     const trimmed = pinToTest.trim();
+    const configuredPin = currentSelectedMember.pin ? currentSelectedMember.pin.trim() : '';
+
     if (isDidulaAdmin) {
-      if (trimmed === '1234' || trimmed === '7788') {
+      const isMatch = (configuredPin !== '' && trimmed === configuredPin) || trimmed === '1234' || trimmed === '7788';
+      if (isMatch) {
         const user: CurrentStaffUser = {
           id: currentSelectedMember.id,
           name: currentSelectedMember.name,
@@ -117,7 +120,8 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
         }, 800);
       }
     } else {
-      if (trimmed === '5678' || trimmed === '1234') {
+      const isMatch = (configuredPin !== '' && trimmed === configuredPin) || trimmed === '5678' || trimmed === '1234';
+      if (isMatch) {
         const user: CurrentStaffUser = {
           id: currentSelectedMember.id,
           name: currentSelectedMember.name,
