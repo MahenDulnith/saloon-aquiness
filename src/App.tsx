@@ -141,8 +141,19 @@ export const App: React.FC = () => {
     }
   };
 
+  const isAdminPortalActive = currentView === 'admin' && !!currentStaffUser;
+
+  useEffect(() => {
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme) {
+      metaTheme.setAttribute('content', isAdminPortalActive ? '#f0f2f6' : '#18181b');
+    }
+  }, [isAdminPortalActive]);
+
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col justify-between selection:bg-amber-500 selection:text-zinc-950">
+    <div className={`min-h-screen flex flex-col justify-between selection:bg-amber-500 selection:text-zinc-950 ${
+      isAdminPortalActive ? 'bg-[#f0f2f6] text-zinc-900' : 'bg-zinc-950 text-zinc-100'
+    }`}>
       {currentView === 'booking' ? (
         <>
           <div>

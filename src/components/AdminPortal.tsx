@@ -479,49 +479,56 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   return (
     <div className="min-h-screen bg-[#f0f2f6] text-zinc-900 select-none font-sans flex flex-col justify-between">
       
-      {/* Centered App Container */}
-      <div className="w-full max-w-md mx-auto min-h-screen flex flex-col pb-24 px-4 pt-3">
+      {/* App Shell Container */}
+      <div className="w-full min-h-screen flex flex-col">
 
         {/* ----------------- TAB 1: QUEUE ----------------- */}
         {activeTab === 'queue' && (
           <div className="flex flex-col w-full animate-fadeIn">
             
-            {/* Top Bar: Title, Date, Avatar */}
-            <div className="flex items-center justify-between pt-2 pb-1">
-              <div>
-                <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900 leading-tight">
-                  Queue
-                </h1>
-                <p className="text-sm font-medium text-zinc-500 mt-0.5">
-                  {formattedToday}
-                </p>
+            {/* LOCKED TOP HEADER */}
+            <header 
+              style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}
+              className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)]"
+            >
+              <div className="w-full max-w-md mx-auto px-4 pt-1.5 pb-2.5 flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-tight">
+                    Queue
+                  </h1>
+                  <p className="text-xs sm:text-sm font-medium text-zinc-500 mt-0.5">
+                    {formattedToday}
+                  </p>
+                </div>
+
+                {/* User Avatar Circle */}
+                <button
+                  type="button"
+                  onClick={() => setShowProfileMenu(true)}
+                  className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#0d6efd] text-white font-extrabold text-base sm:text-lg flex items-center justify-center shadow-md active:scale-95 transition-transform overflow-hidden ring-2 ring-white/80 shrink-0"
+                  title={`${activeUser.name} (${activeUser.role})`}
+                >
+                  {activeUser.avatar ? (
+                    <img
+                      src={activeUser.avatar}
+                      alt={activeUser.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                  ) : null}
+                  <span className={activeUser.avatar ? 'sr-only' : 'block'}>
+                    {activeUser.name.charAt(0).toUpperCase()}
+                  </span>
+                </button>
               </div>
+            </header>
 
-              {/* User Avatar Circle */}
-              <button
-                type="button"
-                onClick={() => setShowProfileMenu(true)}
-                className="w-11 h-11 rounded-full bg-[#0d6efd] text-white font-extrabold text-lg flex items-center justify-center shadow-md active:scale-95 transition-transform overflow-hidden ring-2 ring-white/80"
-                title={`${activeUser.name} (${activeUser.role})`}
-              >
-                {activeUser.avatar ? (
-                  <img
-                    src={activeUser.avatar}
-                    alt={activeUser.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLElement).style.display = 'none';
-                    }}
-                  />
-                ) : null}
-                <span className={activeUser.avatar ? 'sr-only' : 'block'}>
-                  {activeUser.name.charAt(0).toUpperCase()}
-                </span>
-              </button>
-            </div>
-
-            {/* Metrics Card */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-200/60 mt-3.5">
+            {/* SCROLLABLE MAIN CONTENT */}
+            <main className="w-full max-w-md mx-auto flex-1 px-4 pt-3.5 pb-28">
+              {/* Metrics Card */}
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-200/60">
               <div className="grid grid-cols-3 text-center">
                 <div>
                   <span className="block text-2xl font-black text-amber-600 leading-none">
@@ -763,561 +770,621 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               )}
             </div>
 
+            </main>
           </div>
         )}
 
         {/* ----------------- TAB 2: CALENDAR ----------------- */}
         {activeTab === 'calendar' && (
-          <div className="flex flex-col w-full animate-fadeIn pt-2">
-            <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900">
-              Calendar
-            </h1>
-            <p className="text-sm font-medium text-zinc-500 mt-0.5">
-              Day schedule & time slots
-            </p>
+          <div className="flex flex-col w-full animate-fadeIn">
+            {/* LOCKED TOP HEADER */}
+            <header 
+              style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}
+              className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)]"
+            >
+              <div className="w-full max-w-md mx-auto px-4 pt-1.5 pb-2.5">
+                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-tight">
+                  Calendar
+                </h1>
+                <p className="text-xs sm:text-sm font-medium text-zinc-500 mt-0.5">
+                  Day schedule & time slots
+                </p>
 
-            {/* Date Pill Selector */}
-            <div className="flex items-center gap-2 overflow-x-auto py-3 no-scrollbar">
-              {[-1, 0, 1, 2, 3, 4, 5].map(offset => {
-                const target = new Date();
-                target.setDate(target.getDate() + offset);
-                const targetIso = target.toISOString().split('T')[0];
-                const isSelected = selectedCalendarDate === targetIso;
-                const isToday = offset === 0;
+                {/* Date Pill Selector in locked header */}
+                <div className="flex items-center gap-2 overflow-x-auto pt-2.5 pb-0.5 no-scrollbar">
+                  {[-1, 0, 1, 2, 3, 4, 5].map(offset => {
+                    const target = new Date();
+                    target.setDate(target.getDate() + offset);
+                    const targetIso = target.toISOString().split('T')[0];
+                    const isSelected = selectedCalendarDate === targetIso;
+                    const isToday = offset === 0;
 
-                const dayName = target.toLocaleDateString('en-GB', { weekday: 'short' });
-                const dayNum = target.getDate();
+                    const dayName = target.toLocaleDateString('en-GB', { weekday: 'short' });
+                    const dayNum = target.getDate();
 
-                return (
-                  <button
-                    key={offset}
-                    type="button"
-                    onClick={() => setSelectedCalendarDate(targetIso)}
-                    className={`flex flex-col items-center justify-center min-w-[54px] py-2 px-1.5 rounded-2xl transition-all ${
-                      isSelected
-                        ? 'bg-[#0d6efd] text-white shadow-md font-bold'
-                        : 'bg-white text-zinc-700 border border-zinc-200/60 hover:border-zinc-300'
-                    }`}
-                  >
-                    <span className="text-[11px] uppercase tracking-wider">{dayName}</span>
-                    <span className="text-lg font-bold">{dayNum}</span>
-                    {isToday && (
-                      <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${isSelected ? 'bg-white' : 'bg-[#0d6efd]'}`} />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Appointments for Selected Date */}
-            <div className="space-y-3 mt-2">
-              {appointments.filter(a => a.date === selectedCalendarDate && a.status !== 'cancelled').length === 0 ? (
-                <div className="bg-white rounded-2xl p-8 text-center text-zinc-400 border border-zinc-200/60 shadow-sm mt-3">
-                  <CalendarDays className="w-8 h-8 mx-auto text-zinc-300 mb-2" />
-                  <p className="font-semibold text-zinc-700">No appointments scheduled</p>
-                  <p className="text-xs text-zinc-400 mt-1">This date has no bookings recorded.</p>
+                    return (
+                      <button
+                        key={offset}
+                        type="button"
+                        onClick={() => setSelectedCalendarDate(targetIso)}
+                        className={`flex flex-col items-center justify-center min-w-[54px] py-1.5 px-1.5 rounded-2xl transition-all ${
+                          isSelected
+                            ? 'bg-[#0d6efd] text-white shadow-md font-bold'
+                            : 'bg-white text-zinc-700 border border-zinc-200/60 hover:border-zinc-300'
+                        }`}
+                      >
+                        <span className="text-[11px] uppercase tracking-wider">{dayName}</span>
+                        <span className="text-lg font-bold leading-tight">{dayNum}</span>
+                        {isToday && (
+                          <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${isSelected ? 'bg-white' : 'bg-[#0d6efd]'}`} />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
-              ) : (
-                appointments
-                  .filter(a => a.date === selectedCalendarDate && a.status !== 'cancelled')
-                  .sort((a, b) => a.timeSlot.localeCompare(b.timeSlot))
-                  .map(apt => (
-                    <div 
-                      key={apt.id}
-                      className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-200/60 flex items-center justify-between gap-3"
-                    >
-                      <div className="min-w-[70px]">
-                        <span className="text-sm font-bold text-[#0d6efd] block leading-tight">
-                          {apt.timeSlot}
-                        </span>
-                        <span className="text-xs text-zinc-400 font-medium">
-                          {apt.serviceDuration}m
-                        </span>
-                      </div>
+              </div>
+            </header>
 
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-bold text-sm text-zinc-900 truncate">
-                          {apt.customerName}
-                        </h4>
-                        <p className="text-xs text-zinc-500 truncate">
-                          {apt.serviceName} · {apt.staffName.split(' ')[0]}
-                        </p>
-                      </div>
+            {/* SCROLLABLE MAIN CONTENT */}
+            <main className="w-full max-w-md mx-auto flex-1 px-4 pt-3.5 pb-28">
+              {/* Appointments for Selected Date */}
+              <div className="space-y-3">
+                {appointments.filter(a => a.date === selectedCalendarDate && a.status !== 'cancelled').length === 0 ? (
+                  <div className="bg-white rounded-2xl p-8 text-center text-zinc-400 border border-zinc-200/60 shadow-sm mt-3">
+                    <CalendarDays className="w-8 h-8 mx-auto text-zinc-300 mb-2" />
+                    <p className="font-semibold text-zinc-700">No appointments scheduled</p>
+                    <p className="text-xs text-zinc-400 mt-1">This date has no bookings recorded.</p>
+                  </div>
+                ) : (
+                  appointments
+                    .filter(a => a.date === selectedCalendarDate && a.status !== 'cancelled')
+                    .sort((a, b) => a.timeSlot.localeCompare(b.timeSlot))
+                    .map(apt => (
+                      <div 
+                        key={apt.id}
+                        className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-200/60 flex items-center justify-between gap-3"
+                      >
+                        <div className="min-w-[70px]">
+                          <span className="text-sm font-bold text-[#0d6efd] block leading-tight">
+                            {apt.timeSlot}
+                          </span>
+                          <span className="text-xs text-zinc-400 font-medium">
+                            {apt.serviceDuration}m
+                          </span>
+                        </div>
 
-                      <div className="text-right">
-                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 capitalize">
-                          {apt.status.replace('_', ' ')}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-              )}
-            </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-bold text-sm text-zinc-900 truncate">
+                            {apt.customerName}
+                          </h4>
+                          <p className="text-xs text-zinc-500 truncate">
+                            {apt.serviceName} · {apt.staffName.split(' ')[0]}
+                          </p>
+                        </div>
 
+                        <div className="text-right">
+                          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 capitalize">
+                            {apt.status.replace('_', ' ')}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                )}
+              </div>
+            </main>
           </div>
         )}
 
         {/* ----------------- TAB 3: CLIENTS ----------------- */}
         {activeTab === 'clients' && (
-          <div className="flex flex-col w-full animate-fadeIn pt-2">
-            <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900">
-              Clients
-            </h1>
-            <p className="text-sm font-medium text-zinc-500 mt-0.5">
-              Client directory & booking history
-            </p>
+          <div className="flex flex-col w-full animate-fadeIn">
+            {/* LOCKED TOP HEADER */}
+            <header 
+              style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}
+              className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)]"
+            >
+              <div className="w-full max-w-md mx-auto px-4 pt-1.5 pb-2.5">
+                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-tight">
+                  Clients
+                </h1>
+                <p className="text-xs sm:text-sm font-medium text-zinc-500 mt-0.5">
+                  Client directory & booking history ({clientsList.length})
+                </p>
+              </div>
+            </header>
 
-            <div className="space-y-3 mt-4">
-              {clientsList.length === 0 ? (
-                <div className="bg-white rounded-2xl p-8 text-center text-zinc-400 border border-zinc-200/60 shadow-sm mt-3">
-                  <Users className="w-8 h-8 mx-auto text-zinc-300 mb-2" />
-                  <p className="font-semibold text-zinc-700">No client records found</p>
-                  <p className="text-xs text-zinc-400 mt-1">Clients will appear once bookings are placed.</p>
-                </div>
-              ) : (
-                clientsList.map((client, idx) => (
-                  <div
-                    key={idx}
-                    className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-200/60 flex items-center justify-between gap-3"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-zinc-100 text-zinc-700 font-bold flex items-center justify-center shrink-0">
-                      {client.name.charAt(0)}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-sm text-zinc-900 truncate">
-                        {client.name}
-                      </h4>
-                      <p className="text-xs text-zinc-500">
-                        {client.phone}
-                      </p>
-                      <p className="text-[11px] text-zinc-400 mt-0.5 truncate">
-                        {client.totalVisits} visit{client.totalVisits > 1 ? 's' : ''} · Spent Rs. {client.totalSpend.toLocaleString()}
-                      </p>
-                    </div>
-
-                    <a
-                      href={`tel:${client.phone}`}
-                      className="w-9 h-9 rounded-full bg-blue-50 text-[#0d6efd] flex items-center justify-center hover:bg-blue-100 transition-colors shrink-0"
-                      title={`Call ${client.name}`}
-                    >
-                      <Phone className="w-4 h-4" />
-                    </a>
+            {/* SCROLLABLE MAIN CONTENT */}
+            <main className="w-full max-w-md mx-auto flex-1 px-4 pt-3.5 pb-28">
+              <div className="space-y-3">
+                {clientsList.length === 0 ? (
+                  <div className="bg-white rounded-2xl p-8 text-center text-zinc-400 border border-zinc-200/60 shadow-sm mt-3">
+                    <Users className="w-8 h-8 mx-auto text-zinc-300 mb-2" />
+                    <p className="font-semibold text-zinc-700">No client records found</p>
+                    <p className="text-xs text-zinc-400 mt-1">Clients will appear once bookings are placed.</p>
                   </div>
-                ))
-              )}
-            </div>
+                ) : (
+                  clientsList.map((client, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-200/60 flex items-center justify-between gap-3"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-zinc-100 text-zinc-700 font-bold flex items-center justify-center shrink-0">
+                        {client.name.charAt(0)}
+                      </div>
 
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-sm text-zinc-900 truncate">
+                          {client.name}
+                        </h4>
+                        <p className="text-xs text-zinc-500">
+                          {client.phone}
+                        </p>
+                        <p className="text-[11px] text-zinc-400 mt-0.5 truncate">
+                          {client.totalVisits} visit{client.totalVisits > 1 ? 's' : ''} · Spent Rs. {client.totalSpend.toLocaleString()}
+                        </p>
+                      </div>
+
+                      <a
+                        href={`tel:${client.phone}`}
+                        className="w-9 h-9 rounded-full bg-blue-50 text-[#0d6efd] flex items-center justify-center hover:bg-blue-100 transition-colors shrink-0"
+                        title={`Call ${client.name}`}
+                      >
+                        <Phone className="w-4 h-4" />
+                      </a>
+                    </div>
+                  ))
+                )}
+              </div>
+            </main>
           </div>
         )}
 
         {/* ----------------- TAB 4: SETTINGS ----------------- */}
         {activeTab === 'settings' && (
-          <div className="flex flex-col w-full animate-fadeIn pt-2">
+          <div className="flex flex-col w-full animate-fadeIn">
             
             {/* SUBVIEW 1: SETTINGS ROOT */}
             {settingsSubView === 'root' && (
-              <>
-                <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900">
-                  Settings
-                </h1>
-                <p className="text-sm font-medium text-zinc-500 mt-0.5">
-                  Salon preferences & portal configuration
-                </p>
-
-                {/* Profile Card */}
-                <div 
-                  onClick={() => {
-                    const me = staff.find(s => s.id === activeUser.id);
-                    if (me) openEditStaffModal(me);
-                  }}
-                  className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-200/60 mt-4 flex items-center justify-between gap-3 cursor-pointer hover:bg-zinc-50/70 transition-colors group"
+              <div className="flex flex-col w-full animate-fadeIn">
+                {/* LOCKED TOP HEADER */}
+                <header 
+                  style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}
+                  className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)]"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-12 h-12 rounded-full bg-[#0d6efd] text-white font-extrabold text-xl flex items-center justify-center shadow-sm shrink-0 overflow-hidden ring-1 ring-zinc-200/80">
-                      {activeUser.avatar ? (
-                        <img
-                          src={activeUser.avatar}
-                          alt={activeUser.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLElement).style.display = 'none';
-                          }}
-                        />
-                      ) : null}
-                      <span className={activeUser.avatar ? 'sr-only' : 'block'}>
-                        {activeUser.name.charAt(0)}
-                      </span>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-base text-zinc-900 truncate">
-                          {activeUser.name}
-                        </h3>
-                        {isAdmin && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
-                            Owner
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-zinc-500 truncate">
-                        {activeUser.title || (isAdmin ? 'Admin' : 'Stylist')} · {activeUser.email}
-                      </p>
-                    </div>
+                  <div className="w-full max-w-md mx-auto px-4 pt-1.5 pb-2.5">
+                    <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-tight">
+                      Settings
+                    </h1>
+                    <p className="text-xs sm:text-sm font-medium text-zinc-500 mt-0.5">
+                      Salon preferences & portal configuration
+                    </p>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-zinc-600 transition-colors shrink-0" />
-                </div>
+                </header>
 
-                {/* Group 1: SALON MANAGEMENT */}
-                <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase mt-6 mb-2 block px-1">
-                  SALON MANAGEMENT
-                </span>
-                <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
-                  
-                  {/* Staff Row */}
-                  <button
-                    type="button"
-                    onClick={() => setSettingsSubView('staff')}
-                    className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Users className="w-5 h-5 text-[#0d6efd]" />
-                      <div>
-                        <span className="font-bold text-sm text-zinc-900 block">Staff</span>
-                        <span className="text-xs text-zinc-500">{staff.length} staff members</span>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-zinc-400" />
-                  </button>
-
-                  {/* Services Row */}
-                  <button
-                    type="button"
-                    onClick={() => setSettingsSubView('services')}
-                    className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Scissors className="w-5 h-5 text-[#0d6efd]" />
-                      <div>
-                        <span className="font-bold text-sm text-zinc-900 block">Services</span>
-                        <span className="text-xs text-zinc-500">{services.length} catalog items</span>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-zinc-400" />
-                  </button>
-
-                  {/* Analytics Row */}
-                  <button
-                    type="button"
-                    onClick={() => setSettingsSubView('analytics')}
-                    className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <BarChart3 className="w-5 h-5 text-[#0d6efd]" />
-                      <div>
-                        <span className="font-bold text-sm text-zinc-900 block">Analytics & Performance</span>
-                        <span className="text-xs text-zinc-500">Revenue, tickets & trends</span>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-zinc-400" />
-                  </button>
-
-                </div>
-
-                {/* Group 2: PORTAL ACCESS */}
-                <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase mt-6 mb-2 block px-1">
-                  PORTAL ACCESS
-                </span>
-                <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
-                  
-                  {/* Exit to Client Booking Website */}
-                  {onExitToClientWebsite && (
-                    <button
-                      type="button"
-                      onClick={onExitToClientWebsite}
-                      className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Globe className="w-5 h-5 text-[#0d6efd]" />
-                        <span className="font-bold text-sm text-zinc-900">Client Booking Website</span>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-zinc-400" />
-                    </button>
-                  )}
-
-                  {/* Add to Home Screen / Install App */}
-                  <button
-                    type="button"
-                    onClick={() => setShowInstallGuide(true)}
-                    className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Smartphone className="w-5 h-5 text-[#0d6efd]" />
-                      <div>
-                        <span className="font-bold text-sm text-zinc-900 block">Add to Home Screen</span>
-                        <span className="text-xs text-zinc-500">Install as iPhone (Safari) or Android App</span>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-zinc-400" />
-                  </button>
-
-                  {/* Lock Portal */}
-                  {onLockPortal && (
-                    <button
-                      type="button"
-                      onClick={onLockPortal}
-                      className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Lock className="w-5 h-5 text-zinc-600" />
-                        <span className="font-bold text-sm text-zinc-900">Lock Portal (Require PIN)</span>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-zinc-400" />
-                    </button>
-                  )}
-
-                  {/* Log Out */}
-                  <button
-                    type="button"
+                {/* SCROLLABLE MAIN CONTENT */}
+                <main className="w-full max-w-md mx-auto flex-1 px-4 pt-3.5 pb-28">
+                  {/* Profile Card */}
+                  <div 
                     onClick={() => {
-                      if (window.confirm('Log out of staff portal?')) {
-                        localStorage.removeItem('aquiness_staff_auth');
-                        if (onLockPortal) onLockPortal();
-                      }
+                      const me = staff.find(s => s.id === activeUser.id);
+                      if (me) openEditStaffModal(me);
                     }}
-                    className="w-full p-4 flex items-center gap-3 text-left hover:bg-red-50/50 transition-colors text-red-600"
+                    className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-200/60 mt-1 flex items-center justify-between gap-3 cursor-pointer hover:bg-zinc-50/70 transition-colors group"
                   >
-                    <LogOut className="w-5 h-5" />
-                    <span className="font-bold text-sm">Sign Out</span>
-                  </button>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-12 h-12 rounded-full bg-[#0d6efd] text-white font-extrabold text-xl flex items-center justify-center shadow-sm shrink-0 overflow-hidden ring-1 ring-zinc-200/80">
+                        {activeUser.avatar ? (
+                          <img
+                            src={activeUser.avatar}
+                            alt={activeUser.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        ) : null}
+                        <span className={activeUser.avatar ? 'sr-only' : 'block'}>
+                          {activeUser.name.charAt(0)}
+                        </span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-base text-zinc-900 truncate">
+                            {activeUser.name}
+                          </h3>
+                          {isAdmin && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                              Owner
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-zinc-500 truncate">
+                          {activeUser.title || (isAdmin ? 'Admin' : 'Stylist')} · {activeUser.email}
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-zinc-600 transition-colors shrink-0" />
+                  </div>
 
-                </div>
-              </>
+                  {/* Group 1: SALON MANAGEMENT */}
+                  <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase mt-6 mb-2 block px-1">
+                    SALON MANAGEMENT
+                  </span>
+                  <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
+                    
+                    {/* Staff Row */}
+                    <button
+                      type="button"
+                      onClick={() => setSettingsSubView('staff')}
+                      className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Users className="w-5 h-5 text-[#0d6efd]" />
+                        <div>
+                          <span className="font-bold text-sm text-zinc-900 block">Staff</span>
+                          <span className="text-xs text-zinc-500">{staff.length} staff members</span>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-zinc-400" />
+                    </button>
+
+                    {/* Services Row */}
+                    <button
+                      type="button"
+                      onClick={() => setSettingsSubView('services')}
+                      className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Scissors className="w-5 h-5 text-[#0d6efd]" />
+                        <div>
+                          <span className="font-bold text-sm text-zinc-900 block">Services</span>
+                          <span className="text-xs text-zinc-500">{services.length} catalog items</span>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-zinc-400" />
+                    </button>
+
+                    {/* Analytics Row */}
+                    <button
+                      type="button"
+                      onClick={() => setSettingsSubView('analytics')}
+                      className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <BarChart3 className="w-5 h-5 text-[#0d6efd]" />
+                        <div>
+                          <span className="font-bold text-sm text-zinc-900 block">Analytics & Performance</span>
+                          <span className="text-xs text-zinc-500">Revenue, tickets & trends</span>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-zinc-400" />
+                    </button>
+
+                  </div>
+
+                  {/* Group 2: PORTAL ACCESS */}
+                  <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase mt-6 mb-2 block px-1">
+                    PORTAL ACCESS
+                  </span>
+                  <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
+                    
+                    {/* Exit to Client Booking Website */}
+                    {onExitToClientWebsite && (
+                      <button
+                        type="button"
+                        onClick={onExitToClientWebsite}
+                        className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Globe className="w-5 h-5 text-[#0d6efd]" />
+                          <span className="font-bold text-sm text-zinc-900">Client Booking Website</span>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-zinc-400" />
+                      </button>
+                    )}
+
+                    {/* Add to Home Screen / Install App */}
+                    <button
+                      type="button"
+                      onClick={() => setShowInstallGuide(true)}
+                      className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Smartphone className="w-5 h-5 text-[#0d6efd]" />
+                        <div>
+                          <span className="font-bold text-sm text-zinc-900 block">Add to Home Screen</span>
+                          <span className="text-xs text-zinc-500">Install as iPhone (Safari) or Android App</span>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-zinc-400" />
+                    </button>
+
+                    {/* Lock Portal */}
+                    {onLockPortal && (
+                      <button
+                        type="button"
+                        onClick={onLockPortal}
+                        className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Lock className="w-5 h-5 text-zinc-600" />
+                          <span className="font-bold text-sm text-zinc-900">Lock Portal (Require PIN)</span>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-zinc-400" />
+                      </button>
+                    )}
+
+                    {/* Log Out */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm('Log out of staff portal?')) {
+                          localStorage.removeItem('aquiness_staff_auth');
+                          if (onLockPortal) onLockPortal();
+                        }
+                      }}
+                      className="w-full p-4 flex items-center gap-3 text-left hover:bg-red-50/50 transition-colors text-red-600"
+                    >
+                      <LogOut className="w-5 h-5" />
+                      <span className="font-bold text-sm">Sign Out</span>
+                    </button>
+
+                  </div>
+                </main>
+              </div>
             )}
 
             {/* SUBVIEW 2: STAFF LIST (Mockup: media_1792221587301_8aaa0f40.png) */}
             {settingsSubView === 'staff' && (
               <div className="flex flex-col w-full animate-fadeIn">
-                
-                {/* Back to Settings link */}
-                <button
-                  type="button"
-                  onClick={() => setSettingsSubView('root')}
-                  className="flex items-center gap-1 text-[#0d6efd] font-semibold text-sm hover:underline mb-1"
+                {/* LOCKED TOP HEADER */}
+                <header 
+                  style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}
+                  className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)]"
                 >
-                  <ChevronLeft className="w-5 h-5 -ml-1 stroke-[2.2]" />
-                  Settings
-                </button>
+                  <div className="w-full max-w-md mx-auto px-4 pt-1 pb-2">
+                    {/* Back to Settings link */}
+                    <button
+                      type="button"
+                      onClick={() => setSettingsSubView('root')}
+                      className="flex items-center gap-1 text-[#0d6efd] font-semibold text-sm hover:underline mb-0.5"
+                    >
+                      <ChevronLeft className="w-4 h-4 -ml-1 stroke-[2.2]" />
+                      Settings
+                    </button>
 
-                {/* Header with + Add */}
-                <div className="flex items-center justify-between mt-1 mb-3">
-                  <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900">
-                    Staff
-                  </h1>
-                  <button
-                    type="button"
-                    onClick={openNewStaffModal}
-                    className="text-[#0d6efd] font-bold text-base hover:underline flex items-center gap-0.5"
-                  >
-                    + Add
-                  </button>
-                </div>
-
-                {/* Grouped Staff Card */}
-                <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
-                  {staff.map(member => {
-                    const isOwner = member.id === 'staff-1' || member.name.toLowerCase().includes('didula');
-                    const initial = member.name.charAt(0).toUpperCase();
-
-                    return (
-                      <div
-                        key={member.id}
-                        onClick={() => openEditStaffModal(member)}
-                        className="w-full p-3.5 flex items-center justify-between hover:bg-zinc-50/80 cursor-pointer transition-colors"
+                    {/* Header with + Add */}
+                    <div className="flex items-center justify-between">
+                      <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-tight">
+                        Staff
+                      </h1>
+                      <button
+                        type="button"
+                        onClick={openNewStaffModal}
+                        className="text-[#0d6efd] font-bold text-base hover:underline flex items-center gap-0.5 py-1 px-2 -mr-2"
                       >
-                        <div className="flex items-center gap-3.5 min-w-0">
-                          {/* Round Avatar Circle */}
-                          <div className="w-11 h-11 rounded-full bg-[#dbeafe] text-[#0d6efd] font-extrabold text-lg flex items-center justify-center shrink-0 overflow-hidden ring-1 ring-zinc-200/80">
-                            {member.avatar ? (
-                              <img
-                                src={member.avatar}
-                                alt={member.name}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  (e.currentTarget as HTMLElement).style.display = 'none';
-                                }}
-                              />
-                            ) : null}
-                            <span className={member.avatar ? 'sr-only' : 'block'}>
-                              {initial}
-                            </span>
-                          </div>
+                        + Add
+                      </button>
+                    </div>
+                  </div>
+                </header>
 
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-bold text-base text-zinc-900 truncate">
-                                {member.name}
-                              </h4>
-                              {isOwner && (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#fef3c7] text-[#92400e]">
-                                  Owner
-                                </span>
-                              )}
+                {/* SCROLLABLE MAIN CONTENT */}
+                <main className="w-full max-w-md mx-auto flex-1 px-4 pt-3.5 pb-28">
+                  {/* Grouped Staff Card */}
+                  <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
+                    {staff.map(member => {
+                      const isOwner = member.id === 'staff-1' || member.name.toLowerCase().includes('didula');
+                      const initial = member.name.charAt(0).toUpperCase();
+
+                      return (
+                        <div
+                          key={member.id}
+                          onClick={() => openEditStaffModal(member)}
+                          className="w-full p-3.5 flex items-center justify-between hover:bg-zinc-50/80 cursor-pointer transition-colors"
+                        >
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            {/* Round Avatar Circle */}
+                            <div className="w-11 h-11 rounded-full bg-[#dbeafe] text-[#0d6efd] font-extrabold text-lg flex items-center justify-center shrink-0 overflow-hidden ring-1 ring-zinc-200/80">
+                              {member.avatar ? (
+                                <img
+                                  src={member.avatar}
+                                  alt={member.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLElement).style.display = 'none';
+                                  }}
+                                />
+                              ) : null}
+                              <span className={member.avatar ? 'sr-only' : 'block'}>
+                                {initial}
+                              </span>
                             </div>
-                            <span className="text-xs text-zinc-500 font-medium block">
-                              {isOwner ? 'Admin' : (member.role || 'Stylist')}
-                            </span>
+
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-bold text-base text-zinc-900 truncate">
+                                  {member.name}
+                                </h4>
+                                {isOwner && (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#fef3c7] text-[#92400e]">
+                                    Owner
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-xs text-zinc-500 font-medium block">
+                                {isOwner ? 'Admin' : (member.role || 'Stylist')}
+                              </span>
+                            </div>
                           </div>
+
+                          <ChevronRight className="w-5 h-5 text-zinc-400 shrink-0 ml-2" />
                         </div>
+                      );
+                    })}
+                  </div>
 
-                        <ChevronRight className="w-5 h-5 text-zinc-400 shrink-0 ml-2" />
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Footer instructions */}
-                <p className="text-xs text-zinc-500 font-medium px-2 mt-3 leading-relaxed">
-                  Tap a person to change their role or PIN, or to deactivate them.
-                </p>
-
+                  {/* Footer instructions */}
+                  <p className="text-xs text-zinc-500 font-medium px-2 mt-3 leading-relaxed">
+                    Tap a person to change their role or PIN, or to deactivate them.
+                  </p>
+                </main>
               </div>
             )}
 
             {/* SUBVIEW 3: SERVICES LIST (Mockup: media_1792221587304_f638ca86.png) */}
             {settingsSubView === 'services' && (
               <div className="flex flex-col w-full animate-fadeIn">
-                
-                {/* Back to Settings link */}
-                <button
-                  type="button"
-                  onClick={() => setSettingsSubView('root')}
-                  className="flex items-center gap-1 text-[#0d6efd] font-semibold text-sm hover:underline mb-1"
+                {/* LOCKED TOP HEADER */}
+                <header 
+                  style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}
+                  className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)]"
                 >
-                  <ChevronLeft className="w-5 h-5 -ml-1 stroke-[2.2]" />
-                  Settings
-                </button>
+                  <div className="w-full max-w-md mx-auto px-4 pt-1 pb-2">
+                    {/* Back to Settings link */}
+                    <button
+                      type="button"
+                      onClick={() => setSettingsSubView('root')}
+                      className="flex items-center gap-1 text-[#0d6efd] font-semibold text-sm hover:underline mb-0.5"
+                    >
+                      <ChevronLeft className="w-4 h-4 -ml-1 stroke-[2.2]" />
+                      Settings
+                    </button>
 
-                {/* Header with + Add */}
-                <div className="flex items-center justify-between mt-1 mb-3">
-                  <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900">
-                    Services
-                  </h1>
-                  <button
-                    type="button"
-                    onClick={openNewServiceModal}
-                    className="text-[#0d6efd] font-bold text-base hover:underline flex items-center gap-0.5"
-                  >
-                    + Add
-                  </button>
-                </div>
-
-                {/* Grouped Services Card */}
-                <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
-                  {services.map(srv => {
-                    const isServiceActive = srv.active !== false;
-
-                    return (
-                      <div
-                        key={srv.id}
-                        onClick={() => openEditServiceModal(srv)}
-                        className="w-full p-4 flex items-center justify-between gap-3 hover:bg-zinc-50/80 cursor-pointer transition-colors"
+                    {/* Header with + Add */}
+                    <div className="flex items-center justify-between">
+                      <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-tight">
+                        Services
+                      </h1>
+                      <button
+                        type="button"
+                        onClick={openNewServiceModal}
+                        className="text-[#0d6efd] font-bold text-base hover:underline flex items-center gap-0.5 py-1 px-2 -mr-2"
                       >
-                        <div className="min-w-0 flex-1">
-                          <h4 className="font-bold text-base text-zinc-900 leading-snug truncate">
-                            {srv.name}
-                          </h4>
-                          <p className="text-xs text-zinc-500 font-medium mt-0.5">
-                            {srv.durationMinutes} min · Rs. {srv.price.toLocaleString()}
-                          </p>
-                        </div>
+                        + Add
+                      </button>
+                    </div>
+                  </div>
+                </header>
 
-                        {/* iOS Toggle Switch */}
-                        <button
-                          type="button"
-                          onClick={(e) => handleToggleServiceActive(srv.id, e)}
-                          className={`relative w-12 h-7 rounded-full transition-colors shrink-0 ${
-                            isServiceActive ? 'bg-[#198754]' : 'bg-zinc-300'
-                          }`}
+                {/* SCROLLABLE MAIN CONTENT */}
+                <main className="w-full max-w-md mx-auto flex-1 px-4 pt-3.5 pb-28">
+                  {/* Grouped Services Card */}
+                  <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
+                    {services.map(srv => {
+                      const isServiceActive = srv.active !== false;
+
+                      return (
+                        <div
+                          key={srv.id}
+                          onClick={() => openEditServiceModal(srv)}
+                          className="w-full p-4 flex items-center justify-between gap-3 hover:bg-zinc-50/80 cursor-pointer transition-colors"
                         >
-                          <span 
-                            className={`block w-6 h-6 rounded-full bg-white shadow-md transform transition-transform ${
-                              isServiceActive ? 'translate-x-[22px]' : 'translate-x-0.5'
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-bold text-base text-zinc-900 leading-snug truncate">
+                              {srv.name}
+                            </h4>
+                            <p className="text-xs text-zinc-500 font-medium mt-0.5">
+                              {srv.durationMinutes} min · Rs. {srv.price.toLocaleString()}
+                            </p>
+                          </div>
+
+                          {/* iOS Toggle Switch */}
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleServiceActive(srv.id, e)}
+                            className={`relative w-12 h-7 rounded-full transition-colors shrink-0 ${
+                              isServiceActive ? 'bg-[#198754]' : 'bg-zinc-300'
                             }`}
-                          />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
+                          >
+                            <span 
+                              className={`block w-6 h-6 rounded-full bg-white shadow-md transform transition-transform ${
+                                isServiceActive ? 'translate-x-[22px]' : 'translate-x-0.5'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
 
-                {/* Footer instructions */}
-                <p className="text-xs text-zinc-500 font-medium px-2 mt-3 leading-relaxed">
-                  Switch a service off to hide it from client booking. Only the owner can add or edit services.
-                </p>
-
+                  {/* Footer instructions */}
+                  <p className="text-xs text-zinc-500 font-medium px-2 mt-3 leading-relaxed">
+                    Switch a service off to hide it from client booking. Only the owner can add or edit services.
+                  </p>
+                </main>
               </div>
             )}
 
             {/* SUBVIEW 4: ANALYTICS */}
             {settingsSubView === 'analytics' && (
               <div className="flex flex-col w-full animate-fadeIn">
-                <button
-                  type="button"
-                  onClick={() => setSettingsSubView('root')}
-                  className="flex items-center gap-1 text-[#0d6efd] font-semibold text-sm hover:underline mb-1"
+                {/* LOCKED TOP HEADER */}
+                <header 
+                  style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}
+                  className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)]"
                 >
-                  <ChevronLeft className="w-5 h-5 -ml-1 stroke-[2.2]" />
-                  Settings
-                </button>
+                  <div className="w-full max-w-md mx-auto px-4 pt-1 pb-2">
+                    <button
+                      type="button"
+                      onClick={() => setSettingsSubView('root')}
+                      className="flex items-center gap-1 text-[#0d6efd] font-semibold text-sm hover:underline mb-0.5"
+                    >
+                      <ChevronLeft className="w-4 h-4 -ml-1 stroke-[2.2]" />
+                      Settings
+                    </button>
 
-                <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900 mt-1 mb-3">
-                  Analytics
-                </h1>
-
-                {/* Overview Cards */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-zinc-200/60">
-                    <span className="text-xs font-semibold text-zinc-500 block">All-time Revenue</span>
-                    <span className="text-xl font-black text-zinc-900 mt-1 block">
-                      Rs. {appointments.filter(a => a.status === 'completed' || a.status === 'confirmed').reduce((sum, a) => sum + a.servicePrice, 0).toLocaleString()}
-                    </span>
+                    <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-tight">
+                      Analytics
+                    </h1>
                   </div>
-                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-zinc-200/60">
-                    <span className="text-xs font-semibold text-zinc-500 block">Total Appointments</span>
-                    <span className="text-xl font-black text-zinc-900 mt-1 block">
-                      {appointments.length}
-                    </span>
+                </header>
+
+                {/* SCROLLABLE MAIN CONTENT */}
+                <main className="w-full max-w-md mx-auto flex-1 px-4 pt-3.5 pb-28 space-y-4">
+                  {/* Overview Cards */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-white p-4 rounded-2xl shadow-sm border border-zinc-200/60">
+                      <span className="text-xs font-semibold text-zinc-500 block">All-time Revenue</span>
+                      <span className="text-xl font-black text-zinc-900 mt-1 block">
+                        Rs. {appointments.filter(a => a.status === 'completed' || a.status === 'confirmed').reduce((sum, a) => sum + a.servicePrice, 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="bg-white p-4 rounded-2xl shadow-sm border border-zinc-200/60">
+                      <span className="text-xs font-semibold text-zinc-500 block">Total Appointments</span>
+                      <span className="text-xl font-black text-zinc-900 mt-1 block">
+                        {appointments.length}
+                      </span>
+                    </div>
                   </div>
-                </div>
 
-                {/* Stylist Breakdown */}
-                <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase mt-5 mb-2 block px-1">
-                  STYLIST BREAKDOWN
-                </span>
-                <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
-                  {staff.map(st => {
-                    const staffApts = appointments.filter(a => 
-                      a.staffId === st.id || a.staffName.toLowerCase().includes(st.name.toLowerCase())
-                    );
-                    const staffRev = staffApts
-                      .filter(a => a.status === 'completed' || a.status === 'confirmed')
-                      .reduce((sum, a) => sum + a.servicePrice, 0);
+                  {/* Stylist Breakdown */}
+                  <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase mt-5 mb-2 block px-1">
+                    STYLIST BREAKDOWN
+                  </span>
+                  <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
+                    {staff.map(st => {
+                      const staffApts = appointments.filter(a => 
+                        a.staffId === st.id || a.staffName.toLowerCase().includes(st.name.toLowerCase())
+                      );
+                      const staffRev = staffApts
+                        .filter(a => a.status === 'completed' || a.status === 'confirmed')
+                        .reduce((sum, a) => sum + a.servicePrice, 0);
 
-                    return (
-                      <div key={st.id} className="p-3.5 flex items-center justify-between">
-                        <div>
-                          <h5 className="font-bold text-sm text-zinc-900">{st.name}</h5>
-                          <span className="text-xs text-zinc-500">{staffApts.length} bookings</span>
+                      return (
+                        <div key={st.id} className="p-3.5 flex items-center justify-between">
+                          <div>
+                            <h5 className="font-bold text-sm text-zinc-900">{st.name}</h5>
+                            <span className="text-xs text-zinc-500">{staffApts.length} bookings</span>
+                          </div>
+                          <span className="font-bold text-sm text-zinc-900">
+                            Rs. {staffRev.toLocaleString()}
+                          </span>
                         </div>
-                        <span className="font-bold text-sm text-zinc-900">
-                          Rs. {staffRev.toLocaleString()}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-
+                      );
+                    })}
+                  </div>
+                </main>
               </div>
             )}
 
@@ -1421,7 +1488,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSaveStaff} className="p-4 space-y-5">
+            <form onSubmit={handleSaveStaff} className="p-4 space-y-5" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 24px)' }}>
               
               {/* Photo Area */}
               <div className="flex flex-col items-center justify-center py-2">
@@ -1649,7 +1716,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSaveService} className="p-4 space-y-5">
+            <form onSubmit={handleSaveService} className="p-4 space-y-5" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 24px)' }}>
               
               {/* DETAILS GROUP */}
               <div>
@@ -1822,7 +1889,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       {/* ----------------- ACTION SHEET: TOP PROFILE MENU ----------------- */}
       {showProfileMenu && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
-          <div className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 space-y-4">
+          <div className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 space-y-4" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 24px)' }}>
             <div className="flex items-center gap-3 pb-3 border-b border-zinc-100">
               <div className="w-12 h-12 rounded-full bg-[#0d6efd] text-white font-extrabold text-xl flex items-center justify-center shadow-md overflow-hidden ring-1 ring-zinc-200/80">
                 {activeUser.avatar ? (
