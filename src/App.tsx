@@ -24,14 +24,77 @@ export const App: React.FC = () => {
     setCurrentView(view);
     if (typeof window !== 'undefined') {
       if (view === 'admin') {
-        window.location.hash = 'staff';
+        if (window.location.pathname !== '/staff' && window.location.pathname !== '/staff/') {
+          try {
+            window.history.pushState(null, '', '/staff');
+          } catch {
+            window.location.hash = 'staff';
+          }
+        }
       } else {
-        if (window.location.hash === '#staff' || window.location.hash === '#admin') {
+        if (window.location.pathname.includes('/staff')) {
+          try {
+            window.history.pushState(null, '', '/');
+          } catch {
+            window.location.hash = '';
+          }
+        } else if (window.location.hash === '#staff' || window.location.hash === '#admin') {
           history.replaceState(null, '', window.location.pathname + window.location.search);
         }
       }
     }
   };
+
+  // Sync browser back/forward buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      const hash = window.location.hash.toLowerCase();
+      const path = window.location.pathname.toLowerCase();
+      if (hash.includes('staff') || hash.includes('admin') || path.includes('/staff')) {
+        setCurrentView('admin');
+      } else {
+        setCurrentView('booking');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Synchronize manifest, document title, and meta title dynamically based on view
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const manifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement | null;
+      const appleTitleMeta = document.querySelector('meta[name="apple-mobile-web-app-title"]') as HTMLMetaElement | null;
+
+      if (currentView === 'admin') {
+        document.title = 'Aquiness Staff | Salon Portal';
+        if (manifestLink) {
+          manifestLink.href = '/manifest-staff.json?v=3';
+        }
+        if (appleTitleMeta) {
+          appleTitleMeta.content = 'Aquiness Staff';
+        }
+        if (window.location.pathname !== '/staff' && window.location.pathname !== '/staff/') {
+          try {
+            window.history.replaceState(null, '', '/staff');
+          } catch {}
+        }
+      } else {
+        document.title = 'Aquiness Barber | Professional Saloon (Pallewela)';
+        if (manifestLink) {
+          manifestLink.href = '/manifest.json?v=3';
+        }
+        if (appleTitleMeta) {
+          appleTitleMeta.content = 'Aquiness';
+        }
+        if (window.location.pathname.includes('/staff')) {
+          try {
+            window.history.replaceState(null, '', '/');
+          } catch {}
+        }
+      }
+    }
+  }, [currentView]);
 
   const [currentStaffUser, setCurrentStaffUser] = useState<CurrentStaffUser | null>(() => {
     try {

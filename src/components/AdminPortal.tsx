@@ -33,7 +33,8 @@ import {
   KeyRound,
   Eye,
   EyeOff,
-  MessageSquare
+  MessageSquare,
+  Share
 } from 'lucide-react';
 import { sendPasswordResetEmail, updatePassword } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from '../firebase/config';
@@ -3451,6 +3452,100 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   {customDialog.confirmText || 'OK'}
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ----------------- MODAL: INSTALL DEDICATED STAFF APP ----------------- */}
+      {showInstallGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl p-6 text-zinc-900 border border-zinc-100">
+            <div className="flex justify-between items-center pb-3 border-b border-zinc-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-blue-50 text-[#0d6efd] flex items-center justify-center">
+                  <Smartphone className="w-4 h-4" />
+                </div>
+                <h3 className="font-extrabold text-base text-zinc-900">Install Staff Shortcut</h3>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setShowInstallGuide(false)}
+                className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 hover:text-zinc-800 flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* App Preview Card */}
+            <div className="mt-4 p-3.5 rounded-2xl bg-zinc-950 text-white flex items-center gap-3.5 shadow-md">
+              <img 
+                src="/apple-touch-icon-v3.png" 
+                alt="Aquiness Staff" 
+                className="w-12 h-12 rounded-2xl shadow-sm border border-zinc-800"
+              />
+              <div className="flex-1 min-w-0">
+                <span className="font-bold text-sm block tracking-tight text-white">Aquiness Staff</span>
+                <span className="text-xs text-amber-400 font-mono block truncate">saloon-aquiness.web.app/staff</span>
+              </div>
+              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                Staff PWA
+              </span>
+            </div>
+
+            {/* Step-by-Step Guide */}
+            <div className="mt-4 space-y-3 text-xs text-zinc-600">
+              <div className="flex items-start gap-3 p-2.5 rounded-xl bg-zinc-50 border border-zinc-100">
+                <div className="w-6 h-6 rounded-lg bg-blue-100 text-[#0d6efd] font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
+                  1
+                </div>
+                <div>
+                  <span className="font-bold text-zinc-900 block text-xs">Tap the Safari Share Button</span>
+                  Tap the <Share className="w-3.5 h-3.5 inline mx-1 text-blue-600" /> icon at the bottom of your Safari screen.
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-2.5 rounded-xl bg-zinc-50 border border-zinc-100">
+                <div className="w-6 h-6 rounded-lg bg-blue-100 text-[#0d6efd] font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
+                  2
+                </div>
+                <div>
+                  <span className="font-bold text-zinc-900 block text-xs">Choose &quot;Add to Home Screen&quot;</span>
+                  Scroll down the share sheet and tap <strong>Add to Home Screen</strong>.
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-2.5 rounded-xl bg-zinc-50 border border-zinc-100">
+                <div className="w-6 h-6 rounded-lg bg-blue-100 text-[#0d6efd] font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
+                  3
+                </div>
+                <div>
+                  <span className="font-bold text-zinc-900 block text-xs">Direct Staff Access</span>
+                  The shortcut will name itself <strong>&quot;Aquiness Staff&quot;</strong> and link directly to <strong>/staff</strong>, opening straight to your Queue &amp; Portal!
+                </div>
+              </div>
+            </div>
+
+            {/* Action Button */}
+            <div className="mt-5 space-y-2">
+              {typeof window !== 'undefined' && !window.location.pathname.includes('/staff') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.href = '/staff';
+                  }}
+                  className="w-full py-3 px-4 rounded-xl bg-[#0d6efd] hover:bg-blue-600 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-colors"
+                >
+                  Switch URL to /staff now
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowInstallGuide(false)}
+                className="w-full py-3 px-4 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-bold text-xs transition-colors"
+              >
+                Got it
+              </button>
             </div>
           </div>
         </div>
