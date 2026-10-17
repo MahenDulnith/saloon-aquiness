@@ -556,7 +556,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                     }`}
                   >
                     <ChevronLeft className="w-4 h-4 stroke-[2.2]" />
-                    {step === 1 ? 'Home' : step === 2 ? 'Services' : step === 3 ? 'Stylist' : 'Date & time'}
+                    {step === 1 ? 'Home' : step === 2 ? 'Service' : step === 3 ? 'Stylist' : 'Date & time'}
                   </button>
 
                   <span className={`text-xs font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
@@ -642,14 +642,17 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                           }`}>
                             {srv.name}
                           </h4>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className={`text-xs ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                          <div className="flex items-center gap-1.5 mt-0.5 text-xs">
+                            <span className={isDark ? 'text-zinc-400' : 'text-zinc-500'}>
                               {srv.durationMinutes} min
                             </span>
                             {srv.popular && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-500">
-                                Popular
-                              </span>
+                              <>
+                                <span className={isDark ? 'text-zinc-600' : 'text-zinc-300'}>·</span>
+                                <span className="font-bold text-amber-500">
+                                  Popular
+                                </span>
+                              </>
                             )}
                           </div>
                         </div>
@@ -716,46 +719,52 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
               </main>
             )}
 
-            {/* STEP 2: CHOOSE SPECIALIST */}
+            {/* STEP 2: CHOOSE STYLIST (Claude's Right Mockup) */}
             {step === 2 && (
               <main className="w-full flex-1 px-4 pt-4 pb-36 space-y-3.5">
-                <div>
-                  <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-zinc-900'}`}>
-                    Select specialist
-                  </h1>
-                  <p className={`text-xs sm:text-sm mt-0.5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                    Choose your master stylist or select Any Available for earliest slot
-                  </p>
-                </div>
+                <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-zinc-900'}`}>
+                  Choose stylist
+                </h1>
 
-                <div className="space-y-2.5">
+                {/* Stylist Selection List (Preserves rich avatars, ratings & roles in clean card group) */}
+                <div className={`rounded-2xl border overflow-hidden divide-y ${
+                  isDark 
+                    ? 'bg-zinc-900/90 border-zinc-800/80 divide-zinc-800/60' 
+                    : 'bg-white border-zinc-200/80 divide-zinc-100 shadow-sm'
+                }`}>
                   
-                  {/* Option 1: Any Specialist */}
+                  {/* Option 1: Any available */}
                   <div
                     onClick={() => setSelectedStaff(null)}
-                    className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
+                    className={`p-3.5 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
                       selectedStaff === null
-                        ? (isDark ? 'bg-amber-500/10 border-amber-500' : 'bg-blue-50/70 border-[#0d6efd]')
-                        : (isDark ? 'bg-zinc-900/90 border-zinc-800' : 'bg-white border-zinc-200/80 shadow-sm')
+                        ? (isDark ? 'bg-amber-500/10' : 'bg-blue-50/60')
+                        : (isDark ? 'hover:bg-zinc-850' : 'hover:bg-zinc-50/80')
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-11 h-11 rounded-full flex items-center justify-center ${
-                        isDark ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-100 text-[#0d6efd]'
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${
+                        selectedStaff === null
+                          ? (isDark ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-100 text-[#0d6efd]')
+                          : (isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-zinc-100 text-zinc-500')
                       }`}>
                         <Sparkles className="w-5 h-5 stroke-[2.2]" />
                       </div>
-                      <div>
-                        <h4 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-zinc-900'}`}>
-                          Any Master Specialist
+                      <div className="min-w-0">
+                        <h4 className={`font-bold text-sm sm:text-base leading-snug truncate ${
+                          selectedStaff === null 
+                            ? (isDark ? 'text-amber-400' : 'text-[#0d6efd]') 
+                            : (isDark ? 'text-white' : 'text-zinc-900')
+                        }`}>
+                          Any available
                         </h4>
                         <span className="text-xs text-emerald-500 font-semibold block">
-                          Fastest appointment availability
+                          Fastest booking availability
                         </span>
                       </div>
                     </div>
 
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all ${
                       selectedStaff === null
                         ? (isDark ? 'bg-amber-500 text-zinc-950' : 'bg-[#0d6efd] text-white')
                         : (isDark ? 'border-2 border-zinc-700' : 'border-2 border-zinc-300')
@@ -764,41 +773,47 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                     </div>
                   </div>
 
-                  {/* Option 2: Individual Stylists */}
+                  {/* Option 2: Individual Stylists with Real Photos & Ratings */}
                   {staff.map(member => {
                     const isSelected = selectedStaff?.id === member.id;
                     return (
                       <div
                         key={member.id}
                         onClick={() => setSelectedStaff(member)}
-                        className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${
+                        className={`p-3.5 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
                           isSelected
-                            ? (isDark ? 'bg-amber-500/10 border-amber-500' : 'bg-blue-50/70 border-[#0d6efd]')
-                            : (isDark ? 'bg-zinc-900/90 border-zinc-800' : 'bg-white border-zinc-200/80 shadow-sm')
+                            ? (isDark ? 'bg-amber-500/10' : 'bg-blue-50/60')
+                            : (isDark ? 'hover:bg-zinc-850' : 'hover:bg-zinc-50/80')
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <img
                             src={member.avatar}
                             alt={member.name}
-                            className="w-12 h-12 rounded-full object-cover ring-2 ring-zinc-200/80 shrink-0"
+                            className="w-11 h-11 rounded-full object-cover ring-2 ring-zinc-200/80 shrink-0"
                           />
                           <div className="min-w-0">
-                            <h4 className={`font-bold text-sm truncate ${isDark ? 'text-white' : 'text-zinc-900'}`}>
+                            <h4 className={`font-bold text-sm sm:text-base leading-snug truncate ${
+                              isSelected 
+                                ? (isDark ? 'text-amber-400' : 'text-[#0d6efd]') 
+                                : (isDark ? 'text-white' : 'text-zinc-900')
+                            }`}>
                               {member.name}
                             </h4>
-                            <p className={`text-xs truncate ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                              {member.role}
-                            </p>
-                            <div className="flex items-center gap-1 mt-0.5 text-xs text-amber-500 font-bold">
-                              <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
-                              <span>{member.rating}</span>
-                              <span className="text-zinc-400 font-normal">({member.reviewsCount})</span>
+                            <div className="flex items-center gap-2 mt-0.5 text-xs truncate">
+                              <span className={isDark ? 'text-zinc-400' : 'text-zinc-500'}>
+                                {member.role}
+                              </span>
+                              <span className={isDark ? 'text-zinc-600' : 'text-zinc-300'}>·</span>
+                              <div className="flex items-center gap-1 text-amber-500 font-bold shrink-0">
+                                <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                                <span>{member.rating}</span>
+                              </div>
                             </div>
                           </div>
                         </div>
 
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all ${
                           isSelected
                             ? (isDark ? 'bg-amber-500 text-zinc-950' : 'bg-[#0d6efd] text-white')
                             : (isDark ? 'border-2 border-zinc-700' : 'border-2 border-zinc-300')
@@ -811,7 +826,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
 
                 </div>
 
-                {/* STICKY BOTTOM BAR */}
+                {/* STICKY BOTTOM BAR (Matches Claude's Choose Stylist screen) */}
                 <div 
                   style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)' }}
                   className={`fixed bottom-0 left-0 right-0 z-40 border-t backdrop-blur-xl ${
@@ -822,8 +837,8 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 >
                   <div className="max-w-md mx-auto px-4 pt-3 pb-2 space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                      <span className={isDark ? 'text-zinc-400' : 'text-zinc-500 font-medium'}>
-                        {selectedStaff ? selectedStaff.name : 'Any available specialist'}
+                      <span className={`truncate max-w-[240px] font-medium ${isDark ? 'text-zinc-300' : 'text-zinc-600'}`}>
+                        {selectedService?.name || 'Executive Precision Haircut & Styling'}
                       </span>
                       <span className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-zinc-900'}`}>
                         Rs. {(selectedService?.price || 2500).toLocaleString()}
