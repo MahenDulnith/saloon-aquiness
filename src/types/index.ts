@@ -20,6 +20,7 @@ export interface StaffMember {
   rating: number;
   reviewsCount: number;
   avatar: string;
+  email?: string;
   available: boolean;
   workingDays: number[]; // 0 for Sun, 1 for Mon, etc.
 }

@@ -305,8 +305,61 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
             Aquiness Barber · choose your name, then enter your PIN
           </p>
 
-          {/* 3. Segmented Control Pill Switcher */}
-          <div className={`w-full p-1 rounded-xl flex items-center mt-3.5 min-[420px]:mt-5 transition-colors ${
+          {/* 3. Staff Selector (Horizontal Row) - USER FIRST */}
+          <div className="grid grid-cols-4 gap-2.5 min-[420px]:gap-3.5 w-full mt-4 min-[420px]:mt-5.5">
+            {activeStaffMembers.map((member) => {
+              const isSelected = selectedStaffId === member.id;
+              const firstName = member.name.split(' ')[0];
+              const initial = firstName.charAt(0);
+              const isMemberAdmin = member.id === 'staff-1' || member.name.toLowerCase().includes('didula');
+
+              return (
+                <button
+                  key={member.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedStaffId(member.id);
+                    setPin('');
+                    setPinError('');
+                    const defaultEmail = member.id === 'staff-1' || member.name.toLowerCase().includes('didula')
+                      ? 'didula@saloonaquiness.lk'
+                      : (member.email || `${member.name.toLowerCase().split(' ')[0]}@saloonaquiness.lk`);
+                    setEmail(defaultEmail);
+                  }}
+                  className="flex flex-col items-center group focus:outline-none"
+                >
+                  <div 
+                    className={`w-12 h-12 min-[420px]:w-14 min-[420px]:h-14 rounded-full flex items-center justify-center font-bold text-lg min-[420px]:text-xl transition-all ${
+                      isSelected 
+                        ? isDark 
+                          ? 'bg-amber-500 text-zinc-950 ring-2 ring-amber-500 ring-offset-2 ring-offset-zinc-950 shadow-lg shadow-amber-500/30' 
+                          : 'bg-[#0d6efd] text-white ring-2 ring-[#0d6efd] ring-offset-2 ring-offset-[#f0f2f6] shadow-md' 
+                        : isDark 
+                          ? 'bg-zinc-900 text-zinc-200 border border-zinc-800 shadow-sm hover:border-zinc-700' 
+                          : 'bg-white text-zinc-900 border border-zinc-200 shadow-sm hover:border-zinc-300'
+                    }`}
+                  >
+                    {initial}
+                  </div>
+                  <span className={`text-xs min-[420px]:text-sm font-bold mt-1.5 text-center truncate max-w-full ${
+                    isDark ? 'text-zinc-100' : 'text-zinc-900'
+                  }`}>
+                    {firstName}
+                  </span>
+                  <span className={`text-[11px] min-[420px]:text-xs text-center truncate max-w-full leading-none mt-0.5 ${
+                    isDark 
+                      ? (isMemberAdmin ? 'text-amber-400 font-semibold' : 'text-zinc-400') 
+                      : 'text-zinc-500'
+                  }`}>
+                    {isMemberAdmin ? 'Admin' : 'Stylist'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 4. Segmented Control Pill Switcher - THEN PIN OR EMAIL */}
+          <div className={`w-full p-1 rounded-xl flex items-center mt-4 min-[420px]:mt-5.5 transition-colors ${
             isDark 
               ? 'bg-zinc-900 border border-zinc-800' 
               : 'bg-[#e2e5eb] shadow-inner'
@@ -342,57 +395,6 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
               Email
             </button>
           </div>
-
-          {/* 4. Staff Selector (Horizontal Row) */}
-          {authMode === 'pin' && (
-            <div className="grid grid-cols-4 gap-2.5 min-[420px]:gap-3.5 w-full mt-4 min-[420px]:mt-6">
-              {activeStaffMembers.map((member) => {
-                const isSelected = selectedStaffId === member.id;
-                const firstName = member.name.split(' ')[0];
-                const initial = firstName.charAt(0);
-                const isMemberAdmin = member.id === 'staff-1' || member.name.toLowerCase().includes('didula');
-
-                return (
-                  <button
-                    key={member.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedStaffId(member.id);
-                      setPin('');
-                      setPinError('');
-                    }}
-                    className="flex flex-col items-center group focus:outline-none"
-                  >
-                    <div 
-                      className={`w-12 h-12 min-[420px]:w-14 min-[420px]:h-14 rounded-full flex items-center justify-center font-bold text-lg min-[420px]:text-xl transition-all ${
-                        isSelected 
-                          ? isDark 
-                            ? 'bg-amber-500 text-zinc-950 ring-2 ring-amber-500 ring-offset-2 ring-offset-zinc-950 shadow-lg shadow-amber-500/30' 
-                            : 'bg-[#0d6efd] text-white ring-2 ring-[#0d6efd] ring-offset-2 ring-offset-[#f0f2f6] shadow-md' 
-                          : isDark 
-                            ? 'bg-zinc-900 text-zinc-200 border border-zinc-800 shadow-sm hover:border-zinc-700' 
-                            : 'bg-white text-zinc-900 border border-zinc-200 shadow-sm hover:border-zinc-300'
-                      }`}
-                    >
-                      {initial}
-                    </div>
-                    <span className={`text-xs min-[420px]:text-sm font-bold mt-1.5 text-center truncate max-w-full ${
-                      isDark ? 'text-zinc-100' : 'text-zinc-900'
-                    }`}>
-                      {firstName}
-                    </span>
-                    <span className={`text-[11px] min-[420px]:text-xs text-center truncate max-w-full leading-none mt-0.5 ${
-                      isDark 
-                        ? (isMemberAdmin ? 'text-amber-400 font-semibold' : 'text-zinc-400') 
-                        : 'text-zinc-500'
-                    }`}>
-                      {isMemberAdmin ? 'Admin' : 'Stylist'}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
 
         </div>
 
