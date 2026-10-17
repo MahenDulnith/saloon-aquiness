@@ -488,8 +488,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             
             {/* LOCKED TOP HEADER */}
             <header 
-              style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}
-              className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)]"
+              className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] app-header-safe-top"
             >
               <div className="w-full max-w-md mx-auto px-4 pt-1.5 pb-2.5 flex items-center justify-between">
                 <div>
@@ -779,8 +778,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           <div className="flex flex-col w-full animate-fadeIn">
             {/* LOCKED TOP HEADER */}
             <header 
-              style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}
-              className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)]"
+              className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] app-header-safe-top"
             >
               <div className="w-full max-w-md mx-auto px-4 pt-1.5 pb-2.5">
                 <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-tight">
@@ -880,8 +878,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           <div className="flex flex-col w-full animate-fadeIn">
             {/* LOCKED TOP HEADER */}
             <header 
-              style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}
-              className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)]"
+              className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] app-header-safe-top"
             >
               <div className="w-full max-w-md mx-auto px-4 pt-1.5 pb-2.5">
                 <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-tight">
@@ -948,8 +945,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <div className="flex flex-col w-full animate-fadeIn">
                 {/* LOCKED TOP HEADER */}
                 <header 
-                  style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}
-                  className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)]"
+                  className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] app-header-safe-top"
                 >
                   <div className="w-full max-w-md mx-auto px-4 pt-1.5 pb-2.5">
                     <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-tight">
@@ -1139,8 +1135,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <div className="flex flex-col w-full animate-fadeIn">
                 {/* LOCKED TOP HEADER */}
                 <header 
-                  style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}
-                  className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)]"
+                  className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] app-header-safe-top"
                 >
                   <div className="w-full max-w-md mx-auto px-4 pt-1 pb-2">
                     {/* Back to Settings link */}
@@ -1237,8 +1232,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <div className="flex flex-col w-full animate-fadeIn">
                 {/* LOCKED TOP HEADER */}
                 <header 
-                  style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}
-                  className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)]"
+                  className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] app-header-safe-top"
                 >
                   <div className="w-full max-w-md mx-auto px-4 pt-1 pb-2">
                     {/* Back to Settings link */}
@@ -1321,8 +1315,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <div className="flex flex-col w-full animate-fadeIn">
                 {/* LOCKED TOP HEADER */}
                 <header 
-                  style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}
-                  className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)]"
+                  className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] app-header-safe-top"
                 >
                   <div className="w-full max-w-md mx-auto px-4 pt-1 pb-2">
                     <button

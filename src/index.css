@@ -38,3 +38,16 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+/* Safe area top header padding for iPhone notch, Dynamic Island, and standalone PWAs */
+.app-header-safe-top {
+  padding-top: 64px;
+  padding-top: max(calc(env(safe-area-inset-top, 0px) + 20px), 64px);
+}
+
+@media (min-width: 640px) {
+  .app-header-safe-top {
+    padding-top: 14px;
+    padding-top: max(env(safe-area-inset-top, 0px), 14px);
+  }
+}

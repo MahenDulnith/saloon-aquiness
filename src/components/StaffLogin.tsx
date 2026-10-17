@@ -273,7 +273,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
       <button
         type="button"
         onClick={toggleTheme}
-        style={{ top: 'max(env(safe-area-inset-top, 0px), 16px)' }}
+        style={{ top: 'max(calc(env(safe-area-inset-top, 0px) + 16px), 24px)' }}
         className={`fixed right-4 min-[420px]:right-6 p-2.5 rounded-full transition-all duration-200 z-20 ${
           isDark 
             ? 'bg-zinc-900 border border-zinc-800 text-amber-400 hover:text-amber-300 hover:border-amber-500/40 shadow-lg' 
@@ -288,7 +288,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
       {/* Main Full-Height Container */}
       <div 
         style={{
-          paddingTop: 'max(env(safe-area-inset-top, 0px), 14px)',
+          paddingTop: 'max(calc(env(safe-area-inset-top, 0px) + 16px), 24px)',
           paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 14px)'
         }}
         className="relative w-full max-w-[340px] min-[390px]:max-w-[356px] min-[420px]:max-w-[390px] sm:max-w-[400px] min-h-[100dvh] flex flex-col justify-between px-3 min-[420px]:px-4"
