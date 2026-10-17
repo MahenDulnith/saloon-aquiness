@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -193,22 +193,62 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     if (matched) {
       const cleanMatchedAvatar = matched.avatar && !matched.avatar.includes('unsplash.com') ? matched.avatar : '';
       const cleanUserAvatar = currentUser.avatar && !currentUser.avatar.includes('unsplash.com') ? currentUser.avatar : '';
+      const isMatchedAdmin = 
+        matched.id === 'staff-1' || 
+        matched.name.toLowerCase().includes('didula') ||
+        matched.role.toLowerCase().includes('admin') ||
+        matched.role.toLowerCase().includes('founder') ||
+        matched.role.toLowerCase().includes('owner') ||
+        currentUser.role === 'admin';
+
       return {
         ...currentUser,
         name: matched.name,
+        role: isMatchedAdmin ? 'admin' : 'staff',
         avatar: cleanMatchedAvatar || cleanUserAvatar || '',
         title: matched.role || currentUser.title,
         email: matched.email || currentUser.email
       };
     }
     const cleanCurrentAvatar = currentUser.avatar && !currentUser.avatar.includes('unsplash.com') ? currentUser.avatar : '';
+    const isCurrentAdmin = 
+      currentUser.id === 'staff-1' || 
+      currentUser.name.toLowerCase().includes('didula') ||
+      currentUser.role === 'admin';
+
     return {
       ...currentUser,
+      role: isCurrentAdmin ? 'admin' : 'staff',
       avatar: cleanCurrentAvatar
     };
   }, [currentUser, staff]);
 
-  const isAdmin = activeUser.role === 'admin';
+  // Robust Admin check (Didula or staff with Admin role)
+  const isAdmin = useMemo(() => {
+    const isMasterDidula = 
+      activeUser.id === 'staff-1' || 
+      activeUser.name.toLowerCase().includes('didula') ||
+      currentUser.id === 'staff-1' ||
+      currentUser.name.toLowerCase().includes('didula');
+    if (isMasterDidula) return true;
+
+    const matched = staff.find(
+      s => s.id === activeUser.id || s.name.toLowerCase() === activeUser.name.toLowerCase()
+    );
+    if (matched) {
+      const roleLower = (matched.role || '').toLowerCase();
+      return roleLower.includes('admin') || roleLower.includes('founder') || roleLower.includes('owner');
+    }
+
+    return activeUser.role === 'admin' || currentUser.role === 'admin';
+  }, [activeUser, currentUser, staff]);
+
+  // Security guard: If a non-admin attempts to access staff management subview, redirect to root
+  useEffect(() => {
+    if (!isAdmin && settingsSubView === 'staff') {
+      setSettingsSubView('root');
+    }
+  }, [isAdmin, settingsSubView]);
 
   // Format today's date in Sri Lanka Standard Time (e.g. "Sunday, 18 October 2026")
   const formattedToday = useMemo(() => {
@@ -556,6 +596,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   const handleSendPasswordReset = async (targetEmail: string) => {
     const emailToSend = targetEmail.trim() || 'didula@saloonaquiness.lk';
+    
+    // Security check: non-admins can ONLY request reset for their own registered email
+    if (!isAdmin) {
+      const myEmail = (activeUser.email || currentUser.email || '').trim().toLowerCase();
+      if (emailToSend.toLowerCase() !== myEmail && myEmail !== '') {
+        showAlert({
+          title: 'Action Denied',
+          message: 'You can only request a password reset for your own registered email address.',
+          variant: 'danger'
+        });
+        return;
+      }
+    }
+
     setResetEmailLoading(true);
     try {
       if (isFirebaseConfigured()) {
@@ -580,6 +634,23 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   const handleUpdateDirectPassword = async () => {
+    const isEditingSelf = 
+      !editingStaff || 
+      editingStaff.id === activeUser.id || 
+      editingStaff.id === currentUser.id ||
+      editingStaff.name.toLowerCase() === activeUser.name.toLowerCase() ||
+      editingStaff.name.toLowerCase() === currentUser.name.toLowerCase();
+
+    // Security check: non-admins cannot change another staff member's password
+    if (!isAdmin && !isEditingSelf) {
+      showAlert({
+        title: 'Action Denied',
+        message: 'You do not have permission to update other staff passwords.',
+        variant: 'danger'
+      });
+      return;
+    }
+
     if (!newDirectPassword || newDirectPassword.length < 6) {
       showAlert({
         title: 'Invalid Password',
@@ -624,6 +695,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   const openNewStaffModal = () => {
+    if (!isAdmin) {
+      showAlert({
+        title: 'Admin Access Required',
+        message: 'Only salon administrators can add new staff members.',
+        variant: 'warning'
+      });
+      return;
+    }
     setEditingStaff(null);
     setStaffFormName('');
     setStaffFormPhone('');
@@ -641,6 +720,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   const openEditStaffModal = (st: StaffMember) => {
+    const isSelf = 
+      st.id === activeUser.id || 
+      st.name.toLowerCase() === activeUser.name.toLowerCase() ||
+      st.id === currentUser.id ||
+      st.name.toLowerCase() === currentUser.name.toLowerCase();
+
+    // Security check: non-admins cannot edit other staff members
+    if (!isAdmin && !isSelf) {
+      showAlert({
+        title: 'Access Restricted',
+        message: 'You only have permission to view and update your own profile and credentials.',
+        variant: 'warning'
+      });
+      return;
+    }
+
     setEditingStaff(st);
     setStaffFormName(st.name);
     setStaffFormPhone(st.phone || '');
@@ -668,13 +763,55 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       return;
     }
 
+    const isEditingSelf = 
+      activeUser.id === (editingStaff?.id || '') || 
+      currentUser.id === (editingStaff?.id || '') ||
+      currentUser.name.toLowerCase() === (editingStaff?.name || '').toLowerCase() ||
+      activeUser.name.toLowerCase() === (editingStaff?.name || '').toLowerCase();
+
+    // Security Guard 1: Non-admins cannot create new staff
+    if (!isAdmin && !editingStaff) {
+      showAlert({
+        title: 'Permission Denied',
+        message: 'Only salon administrators can add new staff members.',
+        variant: 'danger'
+      });
+      return;
+    }
+
+    // Security Guard 2: Non-admins cannot edit other staff members
+    if (!isAdmin && editingStaff && !isEditingSelf) {
+      showAlert({
+        title: 'Permission Denied',
+        message: 'You can only update your own profile.',
+        variant: 'danger'
+      });
+      return;
+    }
+
+    // Security Guard 3: Non-admins CANNOT promote themselves or anyone to Admin
+    let finalRole: 'Admin' | 'Stylist' = staffFormRole;
+    if (!isAdmin) {
+      const existingIsAdmin = editingStaff?.role.toLowerCase().includes('admin') || editingStaff?.role.toLowerCase().includes('founder');
+      finalRole = existingIsAdmin ? 'Admin' : 'Stylist';
+    }
+
+    // Security Guard 4: Didula is permanently Admin (cannot be demoted)
+    const isDidula = 
+      (editingStaff?.id === 'staff-1') || 
+      (editingStaff?.name.toLowerCase().includes('didula')) || 
+      staffFormName.toLowerCase().includes('didula');
+    if (isDidula) {
+      finalRole = 'Admin';
+    }
+
     const firstName = staffFormName.trim().split(' ')[0];
 
     const staffMemberToSave: StaffMember = {
       id: editingStaff ? editingStaff.id : `staff-${Date.now().toString(36)}`,
       name: staffFormName.trim(),
-      role: staffFormRole === 'Admin' ? 'Admin' : 'Stylist',
-      specialty: editingStaff?.specialty || 'Hair & Beard Styling',
+      role: finalRole,
+      specialty: editingStaff?.specialty || (finalRole === 'Admin' ? 'Owner & Master Barber' : 'Hair & Beard Styling'),
       rating: editingStaff?.rating ?? 5.0,
       reviewsCount: editingStaff?.reviewsCount ?? 1,
       avatar: staffFormAvatar.trim(),
@@ -688,18 +825,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
     await FirebaseService.addOrUpdateStaff(staffMemberToSave);
 
-    // Sync auth user avatar in session if current user edited their own profile
-    const isEditingSelf = 
-      activeUser.id === staffMemberToSave.id || 
-      currentUser.id === staffMemberToSave.id ||
-      currentUser.name.toLowerCase() === staffMemberToSave.name.toLowerCase();
-
+    // Sync auth user avatar and details in session if current user edited their own profile
     if (isEditingSelf) {
       const updatedUser: CurrentStaffUser = {
         ...activeUser,
         name: staffMemberToSave.name,
         avatar: staffMemberToSave.avatar,
         title: staffMemberToSave.role,
+        role: staffMemberToSave.role === 'Admin' ? 'admin' : 'staff',
         email: staffMemberToSave.email
       };
       if (onCurrentUserUpdated) {
@@ -721,6 +854,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   const handleDeleteStaff = async (id: string) => {
+    if (!isAdmin) {
+      showAlert({
+        title: 'Permission Denied',
+        message: 'Only salon administrators can remove staff members.',
+        variant: 'danger'
+      });
+      return;
+    }
+
     const isTargetAdmin = 
       id === 'staff-1' || 
       editingStaff?.name.toLowerCase().includes('didula') ||
@@ -1507,7 +1649,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   {/* Profile Card */}
                   <div 
                     onClick={() => {
-                      const me = staff.find(s => s.id === activeUser.id);
+                      const me = staff.find(s => s.id === activeUser.id || s.name.toLowerCase() === activeUser.name.toLowerCase()) ||
+                                 staff.find(s => s.id === currentUser.id || s.name.toLowerCase() === currentUser.name.toLowerCase());
                       if (me) openEditStaffModal(me);
                     }}
                     className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-200/60 mt-1 flex items-center justify-between gap-3 cursor-pointer hover:bg-zinc-50/70 transition-colors group"
@@ -1553,21 +1696,23 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </span>
                   <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
                     
-                    {/* Staff Row */}
-                    <button
-                      type="button"
-                      onClick={() => setSettingsSubView('staff')}
-                      className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Users className="w-5 h-5 text-[#0d6efd]" />
-                        <div>
-                          <span className="font-bold text-sm text-zinc-900 block">Staff</span>
-                          <span className="text-xs text-zinc-500">{staff.length} staff members</span>
+                    {/* Staff Row (Admin Only) */}
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => setSettingsSubView('staff')}
+                        className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Users className="w-5 h-5 text-[#0d6efd]" />
+                          <div>
+                            <span className="font-bold text-sm text-zinc-900 block">Staff</span>
+                            <span className="text-xs text-zinc-500">{staff.length} staff members</span>
+                          </div>
                         </div>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-zinc-400" />
-                    </button>
+                        <ChevronRight className="w-5 h-5 text-zinc-400" />
+                      </button>
+                    )}
 
                     {/* Services Row */}
                     <button
@@ -1613,10 +1758,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <button
                       type="button"
                       onClick={() => {
-                        const me = staff.find(s => s.id === activeUser.id) || 
-                                   staff.find(s => s.name.toLowerCase().includes('didula')) || 
-                                   staff[0];
-                        if (me) openEditStaffModal(me);
+                        const me = staff.find(s => s.id === activeUser.id || s.name.toLowerCase() === activeUser.name.toLowerCase()) ||
+                                   staff.find(s => s.id === currentUser.id || s.name.toLowerCase() === currentUser.name.toLowerCase());
+                        if (me) {
+                          openEditStaffModal(me);
+                        } else {
+                          showAlert({
+                            title: 'Profile Not Found',
+                            message: 'Could not find your staff record to change credentials.',
+                            variant: 'warning'
+                          });
+                        }
                       }}
                       className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
                     >
@@ -1702,8 +1854,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
             )}
 
-            {/* SUBVIEW 2: STAFF LIST (Mockup: media_1792221587301_8aaa0f40.png) */}
-            {settingsSubView === 'staff' && (
+            {/* SUBVIEW 2: STAFF LIST (ADMIN ONLY) */}
+            {settingsSubView === 'staff' && isAdmin && (
               <div className="flex flex-col w-full animate-fadeIn">
                 {/* LOCKED TOP HEADER */}
                 <header 
@@ -2368,29 +2520,42 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </span>
                 <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
                   
-                  {/* Role Switch */}
-                  <div className="p-3 flex items-center justify-between">
-                    <label className="text-sm font-bold text-zinc-900">Role</label>
-                    <div className="bg-[#e2e5eb] p-0.5 rounded-lg flex items-center w-36">
-                      <button
-                        type="button"
-                        onClick={() => setStaffFormRole('Stylist')}
-                        className={`flex-1 py-1 rounded-md text-xs font-bold text-center transition-all ${
-                          staffFormRole === 'Stylist' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-600'
-                        }`}
-                      >
-                        Stylist
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setStaffFormRole('Admin')}
-                        className={`flex-1 py-1 rounded-md text-xs font-bold text-center transition-all ${
-                          staffFormRole === 'Admin' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-600'
-                        }`}
-                      >
-                        Admin
-                      </button>
+                  {/* Role Switch: ONLY ADMINS can change roles; non-admins see a locked badge */}
+                  <div className="p-3.5 flex items-center justify-between">
+                    <div>
+                      <label className="text-sm font-bold text-zinc-900 block">Role</label>
+                      {!isAdmin && (
+                        <span className="text-[11px] text-zinc-400">Only Admin can change roles</span>
+                      )}
                     </div>
+                    {isAdmin ? (
+                      <div className="bg-[#e2e5eb] p-0.5 rounded-lg flex items-center w-36">
+                        <button
+                          type="button"
+                          disabled={editingStaff?.id === 'staff-1' || Boolean(editingStaff?.name.toLowerCase().includes('didula'))}
+                          onClick={() => setStaffFormRole('Stylist')}
+                          className={`flex-1 py-1 rounded-md text-xs font-bold text-center transition-all ${
+                            staffFormRole === 'Stylist' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-600'
+                          } ${(editingStaff?.id === 'staff-1' || Boolean(editingStaff?.name.toLowerCase().includes('didula'))) ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        >
+                          Stylist
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setStaffFormRole('Admin')}
+                          className={`flex-1 py-1 rounded-md text-xs font-bold text-center transition-all ${
+                            staffFormRole === 'Admin' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-600'
+                          }`}
+                        >
+                          Admin
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 px-3 py-1 bg-zinc-100 rounded-lg border border-zinc-200">
+                        <Lock className="w-3.5 h-3.5 text-zinc-400" />
+                        <span className="text-xs font-bold text-zinc-700">{staffFormRole}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* PIN */}
@@ -2517,8 +2682,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
               </div>
 
-              {/* Delete Button (only for non-admin staff) */}
-              {editingStaff && !(
+              {/* Delete Button (only for admin deleting non-admin staff) */}
+              {isAdmin && editingStaff && !(
                 staffFormRole === 'Admin' ||
                 editingStaff.id === 'staff-1' ||
                 Boolean(editingStaff.role?.toLowerCase().includes('admin')) ||
@@ -3011,7 +3176,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 type="button"
                 onClick={() => {
                   setShowProfileMenu(false);
-                  const me = staff.find(s => s.id === activeUser.id);
+                  const me = staff.find(s => s.id === activeUser.id || s.name.toLowerCase() === activeUser.name.toLowerCase()) ||
+                             staff.find(s => s.id === currentUser.id || s.name.toLowerCase() === currentUser.name.toLowerCase());
                   if (me) openEditStaffModal(me);
                 }}
                 className="w-full py-3 px-4 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#0d6efd] font-bold text-sm flex items-center gap-3 text-left transition-colors"
