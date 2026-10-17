@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
-  Home as HomeIcon, Calendar as CalendarIcon, Ticket, User, 
+  Home as HomeIcon, Calendar as CalendarIcon, Ticket, User, Info,
   Scissors, Phone, MapPin, Clock, Sun, Moon, ChevronRight, 
   ChevronLeft, Check, Sparkles, Star, QrCode, 
   CalendarDays, ExternalLink, CheckCircle2, MessageSquare, AlertCircle
@@ -1532,10 +1532,10 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
             }`}>
               <div className="w-full px-4 pt-1.5 pb-2.5">
                 <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-zinc-900'}`}>
-                  Salon Information
+                  About Aquiness
                 </h1>
                 <p className={`text-xs mt-0.5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                  Working hours, location & settings
+                  Working hours, location, contact & appearance
                 </p>
               </div>
             </header>
@@ -1640,7 +1640,8 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                     { day: 'Saturday', hours: '8:30 AM – 9:00 PM', num: 6 },
                     { day: 'Sunday', hours: '8:30 AM – 9:00 PM', num: 0 },
                   ].map(item => {
-                    const isToday = new Date().getDay() === item.num;
+                    const currentSlWeekday = getSriLankaTimeParts().weekday.toLowerCase();
+                    const isToday = currentSlWeekday.startsWith(item.day.slice(0, 3).toLowerCase());
                     return (
                       <div 
                         key={item.day}
@@ -1766,7 +1767,7 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 )}
               </button>
 
-              {/* 4. Profile / Info */}
+              {/* 4. About Salon */}
               <button
                 type="button"
                 onClick={() => setActiveTab('info')}
@@ -1776,9 +1777,9 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                     : (isDark ? 'text-zinc-500 hover:text-zinc-300' : 'text-zinc-500 hover:text-zinc-800')
                 }`}
               >
-                <User className="w-5 h-5 stroke-[2.2]" />
+                <Info className="w-5 h-5 stroke-[2.2]" />
                 <span className={`text-[11px] mt-1 ${activeTab === 'info' ? 'font-bold' : 'font-medium'}`}>
-                  Profile
+                  About
                 </span>
               </button>
 
