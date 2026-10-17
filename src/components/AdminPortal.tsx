@@ -1286,28 +1286,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                 {/* Date Pill Selector in locked header */}
                 <div className="flex items-center gap-2 overflow-x-auto pt-2.5 pb-0.5 no-scrollbar">
-                  {/* Pick Any Date Button */}
-                  <label 
-                    className="relative flex flex-col items-center justify-center min-w-[50px] py-1.5 px-1.5 rounded-2xl bg-white border border-zinc-200/80 hover:border-zinc-300 cursor-pointer shadow-xs shrink-0 transition-all active:scale-95" 
-                    title="Select any date on calendar"
-                  >
-                    <input
-                      type="date"
-                      value={selectedCalendarDate}
-                      onChange={e => e.target.value && setSelectedCalendarDate(e.target.value)}
-                      className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                    />
-                    <CalendarDays className="w-4 h-4 text-[#0d6efd] mb-0.5" />
-                    <span className="text-[10px] font-bold text-zinc-700">Pick</span>
-                  </label>
-
-                  {[-3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(offset => {
+                  {[-1, 0, 1, 2, 3, 4, 5].map(offset => {
                     const targetIso = addDaysToIso(todayIso, offset);
                     const isSelected = selectedCalendarDate === targetIso;
                     const isToday = offset === 0;
 
-                    const dayName = formatSriLankaDateStr(targetIso).split(',')[0];
-                    const dayNum = targetIso.split('-')[2];
+                    const [y, m, d] = targetIso.split('-').map(Number);
+                    const dateObj = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+                    const dayName = new Intl.DateTimeFormat('en-US', {
+                      timeZone: 'Asia/Colombo',
+                      weekday: 'short'
+                    }).format(dateObj);
+                    const dayNum = d;
 
                     return (
                       <button
@@ -1334,44 +1324,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
             {/* SCROLLABLE MAIN CONTENT */}
             <main className="w-full max-w-md mx-auto flex-1 px-4 pt-3.5 pb-28">
-              {/* Day Revenue & Summary Card */}
-              {(() => {
-                const dayApts = appointments.filter(a => a.date === selectedCalendarDate && a.status !== 'cancelled');
-                const dayRev = dayApts
-                  .filter(a => a.status === 'completed' || a.status === 'confirmed' || a.status === 'in_progress')
-                  .reduce((sum, a) => sum + (a.servicePrice || 0), 0);
-                const dayCompleted = dayApts.filter(a => a.status === 'completed').length;
-
-                return (
-                  <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-zinc-200/60 mb-3.5 flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-semibold text-zinc-500 block">
-                        {formatSriLankaDateStr(selectedCalendarDate, { longWeekday: true })} Revenue
-                      </span>
-                      <span className="text-xl font-black text-zinc-900 mt-0.5 block">
-                        Rs. {dayRev.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xs font-semibold text-zinc-600 block">
-                        {dayApts.length} bookings · {dayCompleted} done
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAnalyticsCustomDate(selectedCalendarDate);
-                          setAnalyticsRange('custom');
-                          setActiveTab('settings');
-                          setSettingsSubView('analytics');
-                        }}
-                        className="text-xs text-[#0d6efd] font-bold hover:underline mt-0.5 inline-block"
-                      >
-                        View in Analytics ›
-                      </button>
-                    </div>
-                  </div>
-                );
-              })()}
 
               {/* Appointments for Selected Date */}
               <div className="space-y-3">
