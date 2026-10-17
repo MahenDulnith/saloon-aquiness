@@ -26,10 +26,12 @@ import {
   SlidersHorizontal,
   Mail,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  Smartphone
 } from 'lucide-react';
 import { Appointment, SalonService, StaffMember, AppointmentStatus, ServiceCategory, CurrentStaffUser } from '../types';
 import { StorageService } from '../services/storage';
+import { IosInstallModal } from './PWAInstallBanner';
 
 interface AdminPortalProps {
   currentUser: CurrentStaffUser;
@@ -73,6 +75,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   const [showProfileMenu, setShowProfileMenu] = useState<boolean>(false);
   const [actionAppointment, setActionAppointment] = useState<Appointment | null>(null);
+  const [showInstallGuide, setShowInstallGuide] = useState<boolean>(false);
 
   // Calendar selected date
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(() => {
@@ -861,6 +864,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     </button>
                   )}
 
+                  {/* Add to Home Screen / Install App */}
+                  <button
+                    type="button"
+                    onClick={() => setShowInstallGuide(true)}
+                    className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Smartphone className="w-5 h-5 text-[#0d6efd]" />
+                      <div>
+                        <span className="font-bold text-sm text-zinc-900 block">Add to Home Screen</span>
+                        <span className="text-xs text-zinc-500">Install as iPhone (Safari) or Android App</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-zinc-400" />
+                  </button>
+
                   {/* Lock Portal */}
                   {onLockPortal && (
                     <button
@@ -1622,6 +1641,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </button>
           </div>
         </div>
+      )}
+
+      {/* iOS / Mobile App Install Modal */}
+      {showInstallGuide && (
+        <IosInstallModal onClose={() => setShowInstallGuide(false)} />
       )}
 
     </div>
