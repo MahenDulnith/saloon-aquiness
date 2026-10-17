@@ -224,31 +224,33 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         const img = new Image();
         img.onerror = () => reject(new Error('Failed to process image.'));
         img.onload = () => {
-          const maxWidth = 320;
-          const maxHeight = 320;
-          let { width, height } = img;
+          // Automatic 1:1 center square crop (works with tall iPhone portraits or wide landscapes)
+          const cropSize = Math.min(img.width, img.height);
+          const offsetX = Math.round((img.width - cropSize) / 2);
+          const offsetY = Math.round((img.height - cropSize) / 2);
 
-          if (width > height) {
-            if (width > maxWidth) {
-              height = Math.round((height * maxWidth) / width);
-              width = maxWidth;
-            }
-          } else {
-            if (height > maxHeight) {
-              width = Math.round((width * maxHeight) / height);
-              height = maxHeight;
-            }
-          }
-
+          const targetSize = 320;
           const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
+          canvas.width = targetSize;
+          canvas.height = targetSize;
           const ctx = canvas.getContext('2d');
           if (!ctx) {
             resolve(img.src);
             return;
           }
-          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Crop and scale to perfect 1:1 square
+          ctx.drawImage(
+            img,
+            offsetX,
+            offsetY,
+            cropSize,
+            cropSize,
+            0,
+            0,
+            targetSize,
+            targetSize
+          );
           resolve(canvas.toDataURL('image/jpeg', 0.85));
         };
         img.src = e.target?.result as string;
