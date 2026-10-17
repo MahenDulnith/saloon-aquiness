@@ -439,32 +439,31 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
                 </a>
               </div>
 
-              {/* TODAY'S OFFER CARD */}
+              {/* TODAY'S OFFER CARD (Claude's Home Mockup Colors) */}
               <div 
                 onClick={() => handleSelectServiceAndAdvance(TODAYS_OFFER)}
                 className={`p-4 rounded-2xl border cursor-pointer active:scale-[0.99] transition-all ${
                   isDark
-                    ? 'bg-gradient-to-br from-amber-500/15 via-zinc-900 to-zinc-900 border-amber-500/40 hover:border-amber-500/70 shadow-lg shadow-black/40'
-                    : 'bg-white border-zinc-200/80 hover:border-blue-400 shadow-sm'
+                    ? 'bg-zinc-900/95 border-zinc-800 hover:border-zinc-700 shadow-sm'
+                    : 'bg-white border-zinc-200/90 hover:border-zinc-300 shadow-sm'
                 }`}
               >
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <span className="text-[10px] uppercase tracking-wider font-extrabold text-amber-500 block mb-1">
+                    <span className={`text-[11px] uppercase tracking-wider font-extrabold block mb-0.5 ${
+                      isDark ? 'text-amber-400' : 'text-[#c26100]'
+                    }`}>
                       TODAY'S OFFER
                     </span>
-                    <h3 className={`font-bold text-base leading-snug ${isDark ? 'text-white' : 'text-zinc-900'}`}>
+                    <h3 className={`font-extrabold text-base leading-snug truncate ${isDark ? 'text-white' : 'text-zinc-900'}`}>
                       Haircut + Beard Sculpt Combo
                     </h3>
-                    <p className={`text-xs mt-0.5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                      Precision cut + hot towel contour · 70 min
-                    </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <span className={`text-base font-extrabold block ${isDark ? 'text-amber-400' : 'text-zinc-900'}`}>
+                    <span className={`text-base font-extrabold block leading-tight ${isDark ? 'text-white' : 'text-zinc-900'}`}>
                       Rs. 3,800
                     </span>
-                    <span className="text-xs text-zinc-400 line-through">
+                    <span className="text-xs text-zinc-400 line-through block mt-0.5">
                       Rs. 4,300
                     </span>
                   </div>
