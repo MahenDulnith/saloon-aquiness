@@ -164,8 +164,8 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [pin, authMode, selectedStaffId]);
 
-  const handleManualSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleManualSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (pin.length === 4) {
       verifyPin(pin);
     } else {
@@ -242,7 +242,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
   const activeStaffMembers = staffList.slice(0, 4);
 
   return (
-    <div className={`fixed inset-0 z-50 overflow-y-auto flex flex-col items-center transition-colors duration-300 select-none ${
+    <div className={`fixed inset-0 z-50 overflow-y-auto flex flex-col items-center justify-between transition-colors duration-300 select-none ${
       isDark ? 'bg-zinc-950 text-zinc-100' : 'bg-[#f0f2f6] text-zinc-900'
     }`}>
       
@@ -258,7 +258,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
         className={`fixed top-4 right-4 sm:top-6 sm:right-6 p-2.5 rounded-full transition-all duration-200 z-20 ${
           isDark 
             ? 'bg-zinc-900 border border-zinc-800 text-amber-400 hover:text-amber-300 hover:border-amber-500/40 shadow-lg' 
-            : 'bg-white border border-zinc-200/90 text-zinc-600 hover:text-zinc-900 shadow-sm'
+            : 'bg-white border border-zinc-200/90 text-zinc-700 hover:text-zinc-900 shadow-sm'
         }`}
         title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
         aria-label="Toggle Dark/Light Mode"
@@ -266,14 +266,14 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
         {isDark ? <Sun className="w-5 h-5 stroke-[2.2]" /> : <Moon className="w-5 h-5 stroke-[2.2]" />}
       </button>
 
-      {/* Main Full-Height App Container: Distributes Upper Info and Bottom Typing Section */}
-      <div className="relative w-full max-w-[360px] sm:max-w-[380px] min-h-[100dvh] flex flex-col justify-between py-6 sm:py-8 px-4">
+      {/* Main Full-Height Container with Exact Mockup Order */}
+      <div className="relative w-full max-w-[340px] sm:max-w-[360px] min-h-[100dvh] flex flex-col justify-between py-5 sm:py-7 px-3">
         
-        {/* UPPER SECTION: Logo, Title, Segmented Toggle, Staff Avatars, PIN Dots */}
-        <div className="w-full flex flex-col items-center pt-2 sm:pt-4">
+        {/* UPPER SECTION */}
+        <div className="w-full flex flex-col items-center">
           
-          {/* Top Official Logo with Gold Glow */}
-          <div className="relative">
+          {/* 1. Top Official Logo with Gold Glow */}
+          <div className="relative mt-2">
             <div className={`absolute -inset-2 rounded-full blur-md opacity-75 pointer-events-none ${
               isDark 
                 ? 'bg-gradient-to-r from-amber-500/70 via-amber-400/60 to-amber-600/70' 
@@ -286,7 +286,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
             />
           </div>
 
-          {/* Title & Subtitle */}
+          {/* 2. Title & Subtitle */}
           <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight mt-3 text-center ${
             isDark ? 'text-white' : 'text-zinc-900'
           }`}>
@@ -298,8 +298,8 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
             Aquiness Barber · choose your name, then enter your PIN
           </p>
 
-          {/* Segmented Control Pill Switcher */}
-          <div className={`w-full p-1 rounded-xl flex items-center mt-5 transition-colors ${
+          {/* 3. Segmented Control Pill Switcher */}
+          <div className={`w-full p-1 rounded-xl flex items-center mt-4 sm:mt-5 transition-colors ${
             isDark 
               ? 'bg-zinc-900 border border-zinc-800' 
               : 'bg-[#e2e5eb] shadow-inner'
@@ -336,9 +336,9 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
             </button>
           </div>
 
-          {/* Staff Selector (Horizontal Row) */}
+          {/* 4. Staff Selector (Horizontal Row) */}
           {authMode === 'pin' && (
-            <div className="grid grid-cols-4 gap-3 w-full mt-5 sm:mt-6">
+            <div className="grid grid-cols-4 gap-3 w-full mt-5">
               {activeStaffMembers.map((member) => {
                 const isSelected = selectedStaffId === member.id;
                 const firstName = member.name.split(' ')[0];
@@ -357,7 +357,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
                     className="flex flex-col items-center group focus:outline-none"
                   >
                     <div 
-                      className={`w-13 h-13 sm:w-14 sm:h-14 rounded-full flex items-center justify-center font-bold text-lg sm:text-xl transition-all ${
+                      className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center font-bold text-lg sm:text-xl transition-all ${
                         isSelected 
                           ? isDark 
                             ? 'bg-amber-500 text-zinc-950 ring-2 ring-amber-500 ring-offset-2 ring-offset-zinc-950 shadow-lg shadow-amber-500/30' 
@@ -387,9 +387,9 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
             </div>
           )}
 
-          {/* 4 PIN Dots Indicator - with comfortable vertical space */}
+          {/* 5. 4 PIN Dots Indicator */}
           {authMode === 'pin' && (
-            <div className="flex items-center justify-center gap-4 my-5 sm:my-6">
+            <div className="flex items-center justify-center gap-3.5 my-5 sm:my-6">
               {[0, 1, 2, 3].map((index) => {
                 const isFilled = pin.length > index;
                 return (
@@ -419,23 +419,48 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
             </p>
           )}
 
+          {/* 6. PRIMARY BUTTON & LINK (DIRECTLY ABOVE KEYPAD AS IN USER'S MOCKUP) */}
+          {authMode === 'pin' && (
+            <div className="w-full flex flex-col items-center mb-4 sm:mb-5">
+              <button
+                type="button"
+                onClick={() => handleManualSubmit()}
+                className={`w-full py-3.5 sm:py-4 rounded-2xl font-bold text-sm sm:text-base active:scale-[0.99] transition-all text-center ${
+                  isDark 
+                    ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-zinc-950 shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40' 
+                    : 'bg-[#0d6efd] hover:bg-[#0b5ed7] text-white shadow-md shadow-[#0d6efd]/20'
+                }`}
+              >
+                Sign in as {currentSelectedMember.name.split(' ')[0]}
+              </button>
+
+              <button
+                type="button"
+                onClick={onCancel}
+                className={`mt-2.5 text-xs sm:text-sm font-semibold transition-colors ${
+                  isDark ? 'text-zinc-400 hover:text-amber-400' : 'text-[#0d6efd] hover:text-[#0b5ed7]'
+                }`}
+              >
+                Back to client booking
+              </button>
+            </div>
+          )}
+
         </div>
 
-        {/* BOTTOM SECTION: ANCHORED TO THE VERY BOTTOM FOR EASY THUMB REACH */}
+        {/* 7. BOTTOM SECTION: NUMERIC KEYPAD AT THE VERY BOTTOM OF THE SCREEN */}
         {authMode === 'pin' ? (
-          <form onSubmit={handleManualSubmit} className="w-full flex flex-col items-center mt-auto pb-2 sm:pb-4">
-            
-            {/* Numeric Keypad (Calculator Style) */}
-            <div className="grid grid-cols-3 gap-2.5 sm:gap-3 w-full mb-3.5 sm:mb-4">
+          <div className="w-full pb-1 sm:pb-2 mt-auto">
+            <div className="grid grid-cols-3 gap-2.5 sm:gap-3 w-full">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                 <button
                   key={num}
                   type="button"
                   onClick={() => handleNumberPress(num.toString())}
-                  className={`h-13 sm:h-15 rounded-2xl text-xl sm:text-2xl font-semibold transition-all flex items-center justify-center select-none ${
+                  className={`h-11 sm:h-12 rounded-full text-xl sm:text-2xl font-semibold transition-all flex items-center justify-center select-none ${
                     isDark 
-                      ? 'bg-zinc-900/90 border border-zinc-800 text-white shadow-md active:bg-zinc-800 active:scale-95' 
-                      : 'bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-zinc-200/60 text-zinc-900 active:bg-zinc-100 active:scale-95'
+                      ? 'bg-zinc-900 border border-zinc-800 text-white shadow-sm active:bg-zinc-800 active:scale-95' 
+                      : 'bg-white shadow-[0_2px_6px_rgba(0,0,0,0.04)] border border-zinc-200/50 text-zinc-900 active:bg-zinc-100 active:scale-95'
                   }`}
                 >
                   {num}
@@ -448,10 +473,10 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
               <button
                 type="button"
                 onClick={() => handleNumberPress('0')}
-                className={`h-13 sm:h-15 rounded-2xl text-xl sm:text-2xl font-semibold transition-all flex items-center justify-center select-none ${
+                className={`h-11 sm:h-12 rounded-full text-xl sm:text-2xl font-semibold transition-all flex items-center justify-center select-none ${
                   isDark 
-                    ? 'bg-zinc-900/90 border border-zinc-800 text-white shadow-md active:bg-zinc-800 active:scale-95' 
-                    : 'bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-zinc-200/60 text-zinc-900 active:bg-zinc-100 active:scale-95'
+                    ? 'bg-zinc-900 border border-zinc-800 text-white shadow-sm active:bg-zinc-800 active:scale-95' 
+                    : 'bg-white shadow-[0_2px_6px_rgba(0,0,0,0.04)] border border-zinc-200/50 text-zinc-900 active:bg-zinc-100 active:scale-95'
                 }`}
               >
                 0
@@ -460,7 +485,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
               <button
                 type="button"
                 onClick={handleBackspace}
-                className={`h-13 sm:h-15 rounded-2xl active:scale-95 transition-all flex items-center justify-center select-none ${
+                className={`h-11 sm:h-12 rounded-full transition-all flex items-center justify-center select-none ${
                   isDark 
                     ? 'text-zinc-400 hover:text-white active:bg-zinc-800' 
                     : 'text-zinc-800 active:bg-zinc-200/60'
@@ -471,31 +496,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
                 <Delete className="w-6 h-6 stroke-[1.8]" />
               </button>
             </div>
-
-            {/* Solid Action Button */}
-            <button
-              type="submit"
-              className={`w-full py-3.5 sm:py-4 rounded-2xl font-bold text-sm sm:text-base active:scale-[0.99] transition-all text-center ${
-                isDark 
-                  ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-zinc-950 shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40' 
-                  : 'bg-[#0d6efd] hover:bg-[#0b5ed7] text-white shadow-md shadow-[#0d6efd]/20'
-              }`}
-            >
-              Sign in as {currentSelectedMember.name.split(' ')[0]}
-            </button>
-
-            {/* Back to Client Booking Link */}
-            <button
-              type="button"
-              onClick={onCancel}
-              className={`mt-3.5 text-xs sm:text-sm font-semibold transition-colors ${
-                isDark ? 'text-zinc-400 hover:text-amber-400' : 'text-[#0d6efd] hover:text-[#0b5ed7]'
-              }`}
-            >
-              Back to client booking
-            </button>
-
-          </form>
+          </div>
         ) : (
           /* EMAIL MODE FLOW */
           <form onSubmit={handleEmailSubmit} className="w-full space-y-3.5 mt-auto pb-4">
