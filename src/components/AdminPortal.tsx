@@ -370,8 +370,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   const handleDeleteStaff = async (id: string) => {
-    if (id === 'staff-1' || editingStaff?.name.toLowerCase().includes('didula')) {
-      alert('Cannot delete the salon owner account.');
+    const isTargetAdmin = 
+      id === 'staff-1' || 
+      editingStaff?.name.toLowerCase().includes('didula') ||
+      editingStaff?.role.toLowerCase().includes('admin') ||
+      editingStaff?.role.toLowerCase().includes('founder') ||
+      staffFormRole === 'Admin';
+
+    if (isTargetAdmin) {
+      alert('Cannot delete an admin account.');
       return;
     }
     if (window.confirm('Remove this staff member from the salon?')) {
@@ -1664,8 +1671,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
               </div>
 
-              {/* Delete Button (if editing existing and not owner) */}
-              {editingStaff && (
+              {/* Delete Button (only for non-admin staff) */}
+              {editingStaff && !(
+                staffFormRole === 'Admin' ||
+                editingStaff.id === 'staff-1' ||
+                Boolean(editingStaff.role?.toLowerCase().includes('admin')) ||
+                Boolean(editingStaff.role?.toLowerCase().includes('founder')) ||
+                Boolean(editingStaff.name?.toLowerCase().includes('didula'))
+              ) && (
                 <div className="pt-2">
                   <button
                     type="button"
