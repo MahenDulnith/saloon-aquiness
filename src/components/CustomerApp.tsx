@@ -10,6 +10,14 @@ import { SalonService, StaffMember, Appointment, ServiceCategory } from '../type
 import { TIME_SLOTS } from '../data/mockData';
 import { StorageService } from '../services/storage';
 import { FirebaseService } from '../services/firebaseService';
+import { 
+  getSriLankaTimeParts, 
+  getSriLankaTodayIso, 
+  addDaysToIso, 
+  formatSriLankaDateStr, 
+  isSriLankaSlotInPast,
+  SRI_LANKA_TIMEZONE 
+} from '../utils/sriLankaTime';
 
 interface CustomerAppProps {
   services: SalonService[];
@@ -31,12 +39,11 @@ const TODAYS_OFFER: SalonService = {
   active: true
 };
 
-// Dynamic salon open status calculator
+// Dynamic salon open status calculator strictly in Sri Lanka Standard Time (Asia/Colombo, UTC+5:30)
 function getSalonStatus() {
-  const now = new Date();
-  const day = now.getDay(); // 0 = Sun, 6 = Sat
-  const isWeekend = day === 0 || day === 6;
-  const currentHour = now.getHours() + now.getMinutes() / 60;
+  const sl = getSriLankaTimeParts();
+  const isWeekend = sl.weekday === 'Sun' || sl.weekday === 'Sat';
+  const currentHour = sl.decimalHours;
   
   const openHour = isWeekend ? 8.5 : 9.0;
   const closeHour = isWeekend ? 21.0 : 20.0;
@@ -47,7 +54,8 @@ function getSalonStatus() {
   return {
     isOpen,
     statusText: isOpen ? `Open · until ${closeText}` : `Closed · opens ${openText}`,
-    todayHours: isWeekend ? '8:30 AM – 9:00 PM' : '9:00 AM – 8:00 PM'
+    todayHours: isWeekend ? '8:30 AM – 9:00 PM' : '9:00 AM – 8:00 PM',
+    timeZoneLabel: 'Sri Lanka Time (UTC+5:30)'
   };
 }
 
@@ -75,12 +83,9 @@ function formatSlotDisplay(slot: string): string {
 // Flat list of all available time slots in chronological order
 export const ALL_TIME_SLOTS: string[] = TIME_PERIODS.flatMap(p => p.slots);
 
-// Local date string in YYYY-MM-DD format (avoids UTC timezone shift issues in UTC+5:30)
-export function getLocalDateString(d: Date = new Date()): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+// Local date string in YYYY-MM-DD format strictly in Sri Lanka Standard Time (Asia/Colombo)
+export function getLocalDateString(): string {
+  return getSriLankaTodayIso();
 }
 
 // Convert "09:30 AM" or "02:30 PM" to decimal hours (e.g. 9.5 or 14.5)
@@ -95,32 +100,22 @@ export function parseSlotToHours(slot: string): number {
   return hours + minutes / 60;
 }
 
-// Check if a time slot is in the past for the specified date
-export function isSlotInPast(dateStr: string, slot: string, now: Date = new Date()): boolean {
-  const todayStr = getLocalDateString(now);
-  if (dateStr < todayStr) return true;
-  if (dateStr > todayStr) return false;
-
-  // On today's date: compare slot start time to current local time with a 10-minute buffer (0.166 hrs)
-  const currentHours = now.getHours() + now.getMinutes() / 60;
-  const slotHours = parseSlotToHours(slot);
-  return slotHours <= currentHours + 0.166;
+// Check if a time slot is in the past for the specified date in Sri Lanka Standard Time
+export function isSlotInPast(dateStr: string, slot: string): boolean {
+  return isSriLankaSlotInPast(dateStr, slot);
 }
 
-// Computes smart default initial date & slot (defaults to tomorrow if all slots today have concluded)
+// Computes smart default initial date & slot in Sri Lanka time (defaults to tomorrow if all slots today have concluded)
 export function getInitialBookingDateAndSlot(): { date: string; slot: string } {
-  const now = new Date();
-  const todayStr = getLocalDateString(now);
+  const todayStr = getSriLankaTodayIso();
 
-  const firstFutureSlotToday = ALL_TIME_SLOTS.find(slot => !isSlotInPast(todayStr, slot, now));
+  const firstFutureSlotToday = ALL_TIME_SLOTS.find(slot => !isSriLankaSlotInPast(todayStr, slot));
   if (firstFutureSlotToday) {
     return { date: todayStr, slot: firstFutureSlotToday };
   }
 
-  // All slots today have passed -> default to tomorrow morning
-  const tomorrow = new Date(now);
-  tomorrow.setDate(now.getDate() + 1);
-  const tomorrowStr = getLocalDateString(tomorrow);
+  // All slots today have passed in Sri Lanka -> default to tomorrow morning
+  const tomorrowStr = addDaysToIso(todayStr, 1);
   return { date: tomorrowStr, slot: ALL_TIME_SLOTS[0] || '09:00 AM' };
 }
 
@@ -235,17 +230,17 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  // Available next 14 days
+  // Available next 14 days strictly in Sri Lanka Standard Time
   const dateOptions = useMemo(() => {
     const dates = [];
-    const today = new Date();
+    const todayIso = getSriLankaTodayIso();
     for (let i = 0; i < 14; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      const iso = getLocalDateString(d);
-      const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
-      const month = d.toLocaleDateString('en-US', { month: 'short' });
-      const dayNum = d.getDate();
+      const iso = addDaysToIso(todayIso, i);
+      const [y, m, d] = iso.split('-').map(Number);
+      const dateMidday = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+      const weekday = new Intl.DateTimeFormat('en-US', { timeZone: SRI_LANKA_TIMEZONE, weekday: 'short' }).format(dateMidday);
+      const month = new Intl.DateTimeFormat('en-US', { timeZone: SRI_LANKA_TIMEZONE, month: 'short' }).format(dateMidday);
+      const dayNum = d;
       dates.push({
         iso,
         weekday,
@@ -258,23 +253,18 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
     return dates;
   }, []);
 
-  // Selected date month & year uppercase, e.g. "OCTOBER 2026"
+  // Selected date month & year uppercase in Sri Lanka time, e.g. "OCTOBER 2026"
   const selectedMonthYear = useMemo(() => {
     if (!selectedDate) return '';
     const [y, m, d] = selectedDate.split('-').map(Number);
-    const dateObj = new Date(y, m - 1, d);
-    return dateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
+    const dateObj = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+    return new Intl.DateTimeFormat('en-US', { timeZone: SRI_LANKA_TIMEZONE, month: 'long', year: 'numeric' }).format(dateObj).toUpperCase();
   }, [selectedDate]);
 
-  // Formatted date string, e.g. "Mon, 19 Oct"
+  // Formatted date string in Sri Lanka time, e.g. "Mon, 19 Oct"
   const formattedSelectedDate = useMemo(() => {
     if (!selectedDate) return '';
-    const [y, m, d] = selectedDate.split('-').map(Number);
-    const dateObj = new Date(y, m - 1, d);
-    const weekday = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-    const day = dateObj.getDate();
-    const month = dateObj.toLocaleDateString('en-US', { month: 'short' });
-    return `${weekday}, ${day} ${month}`;
+    return formatSriLankaDateStr(selectedDate);
   }, [selectedDate]);
 
   // Categories list

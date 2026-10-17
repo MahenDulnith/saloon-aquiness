@@ -40,6 +40,13 @@ import { Appointment, SalonService, StaffMember, AppointmentStatus, ServiceCateg
 import { StorageService } from '../services/storage';
 import { FirebaseService } from '../services/firebaseService';
 import { IosInstallModal } from './PWAInstallBanner';
+import { 
+  getSriLankaTimeParts, 
+  getSriLankaTodayIso, 
+  addDaysToIso, 
+  formatSriLankaDateStr,
+  SRI_LANKA_TIMEZONE 
+} from '../utils/sriLankaTime';
 
 interface AdminPortalProps {
   currentUser: CurrentStaffUser;
@@ -167,12 +174,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     });
   };
 
-  // Calendar selected date
-  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(() => {
-    return new Date().toISOString().split('T')[0];
-  });
+  const todayIso = getSriLankaTodayIso();
 
-  const todayIso = new Date().toISOString().split('T')[0];
+  // Calendar selected date (strictly Sri Lanka time)
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(() => todayIso);
+
+  // Analytics filter state
+  type AnalyticsRange = 'today' | 'yesterday' | 'week' | 'month' | 'all' | 'custom';
+  const [analyticsRange, setAnalyticsRange] = useState<AnalyticsRange>('today');
+  const [analyticsCustomDate, setAnalyticsCustomDate] = useState<string>(() => todayIso);
 
   // Live synced current user (keeps profile photo & details in sync immediately)
   const activeUser: CurrentStaffUser = useMemo(() => {
@@ -193,15 +203,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   const isAdmin = activeUser.role === 'admin';
 
-  // Format today's date (e.g. "Saturday, 17 October")
+  // Format today's date in Sri Lanka Standard Time (e.g. "Sunday, 18 October 2026")
   const formattedToday = useMemo(() => {
-    const d = new Date();
-    return d.toLocaleDateString('en-GB', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long'
-    });
-  }, []);
+    return formatSriLankaDateStr(todayIso, { showYear: true, longWeekday: true });
+  }, [todayIso]);
 
   // Compute key metrics
   const stats = useMemo(() => {
@@ -215,6 +220,112 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
     return { pendingCount, inChairCount, bookedTodayCount, todayRevenue };
   }, [appointments, todayIso]);
+
+  // Comprehensive Analytics & Revenue computations
+  const analyticsData = useMemo(() => {
+    const yesterdayIso = addDaysToIso(todayIso, -1);
+    const weekAgoIso = addDaysToIso(todayIso, -6);
+    const currentMonthPrefix = todayIso.slice(0, 7);
+
+    // Filter appointments for the selected timeframe
+    const filtered = appointments.filter(a => {
+      if (a.status === 'cancelled') return false;
+      if (analyticsRange === 'today') return a.date === todayIso;
+      if (analyticsRange === 'yesterday') return a.date === yesterdayIso;
+      if (analyticsRange === 'week') return a.date >= weekAgoIso && a.date <= todayIso;
+      if (analyticsRange === 'month') return a.date.startsWith(currentMonthPrefix);
+      if (analyticsRange === 'custom') return a.date === analyticsCustomDate;
+      return true; // 'all'
+    });
+
+    const revenueEligible = filtered.filter(a => a.status === 'completed' || a.status === 'confirmed' || a.status === 'in_progress');
+    const revenue = revenueEligible.reduce((sum, a) => sum + (a.servicePrice || 0), 0);
+    const count = filtered.length;
+    const completedCount = filtered.filter(a => a.status === 'completed').length;
+    const avgJob = revenueEligible.length > 0 ? Math.round(revenue / revenueEligible.length) : 0;
+
+    // All-time totals for reference
+    const allTimeCompleted = appointments.filter(a => a.status === 'completed' || a.status === 'confirmed' || a.status === 'in_progress');
+    const allTimeRevenue = allTimeCompleted.reduce((sum, a) => sum + (a.servicePrice || 0), 0);
+
+    // Day-by-day revenue history list (group all non-cancelled appointments by date)
+    const dailyMap = new Map<string, { date: string; revenue: number; count: number; completedCount: number }>();
+    appointments.forEach(a => {
+      if (a.status === 'cancelled') return;
+      const existing = dailyMap.get(a.date) || { date: a.date, revenue: 0, count: 0, completedCount: 0 };
+      existing.count += 1;
+      if (a.status === 'completed' || a.status === 'confirmed' || a.status === 'in_progress') {
+        existing.revenue += (a.servicePrice || 0);
+      }
+      if (a.status === 'completed') {
+        existing.completedCount += 1;
+      }
+      dailyMap.set(a.date, existing);
+    });
+
+    // Also ensure today and yesterday exist in dailyMap
+    if (!dailyMap.has(todayIso)) {
+      dailyMap.set(todayIso, { date: todayIso, revenue: 0, count: 0, completedCount: 0 });
+    }
+    if (!dailyMap.has(yesterdayIso)) {
+      dailyMap.set(yesterdayIso, { date: yesterdayIso, revenue: 0, count: 0, completedCount: 0 });
+    }
+
+    // Sort descending by date (newest dates first)
+    const dailyHistory = Array.from(dailyMap.values()).sort((a, b) => b.date.localeCompare(a.date));
+
+    // Stylist breakdown for current filtered period
+    const stylistStats = staff.map(st => {
+      const staffApts = filtered.filter(a =>
+        a.staffId === st.id || a.staffName.toLowerCase().includes(st.name.toLowerCase())
+      );
+      const staffRev = staffApts
+        .filter(a => a.status === 'completed' || a.status === 'confirmed' || a.status === 'in_progress')
+        .reduce((sum, a) => sum + (a.servicePrice || 0), 0);
+      return {
+        id: st.id,
+        name: st.name,
+        role: st.role,
+        avatar: st.avatar,
+        bookingsCount: staffApts.length,
+        revenue: staffRev
+      };
+    });
+
+    // Dynamic period labels
+    let rangeLabel = "Today's Revenue";
+    let rangeSubLabel = formatSriLankaDateStr(todayIso, { longWeekday: true });
+    if (analyticsRange === 'yesterday') {
+      rangeLabel = "Yesterday's Revenue";
+      rangeSubLabel = formatSriLankaDateStr(yesterdayIso, { longWeekday: true });
+    } else if (analyticsRange === 'week') {
+      rangeLabel = "Last 7 Days Revenue";
+      rangeSubLabel = `${formatSriLankaDateStr(weekAgoIso)} – ${formatSriLankaDateStr(todayIso)}`;
+    } else if (analyticsRange === 'month') {
+      const parts = getSriLankaTimeParts();
+      rangeLabel = `${parts.monthLong} Revenue`;
+      rangeSubLabel = `${parts.monthLong} ${parts.year}`;
+    } else if (analyticsRange === 'all') {
+      rangeLabel = "All-Time Revenue";
+      rangeSubLabel = "Total cumulative salon earnings";
+    } else if (analyticsRange === 'custom') {
+      rangeLabel = `${formatSriLankaDateStr(analyticsCustomDate, { longWeekday: true })} Revenue`;
+      rangeSubLabel = `Date: ${analyticsCustomDate}`;
+    }
+
+    return {
+      filtered,
+      revenue,
+      count,
+      completedCount,
+      avgJob,
+      allTimeRevenue,
+      dailyHistory,
+      stylistStats,
+      rangeLabel,
+      rangeSubLabel
+    };
+  }, [appointments, staff, todayIso, analyticsRange, analyticsCustomDate]);
 
   // Filtered Queue Appointments
   const filteredQueueAppointments = useMemo(() => {
@@ -739,14 +850,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     const customerPhoneFinal = walkInCustomerPhone.trim() || 'N/A';
     const finalPrice = parseFloat(walkInPrice) || chosenService.price || 0;
 
-    // Current time formatted e.g. "11:45 AM"
-    const now = new Date();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    const formattedHours = hours % 12 || 12;
-    const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
-    const currentTimeSlot = `${formattedHours}:${formattedMinutes} ${ampm}`;
+    // Current time formatted in Sri Lanka Standard Time e.g. "11:45 AM"
+    const currentTimeSlot = getSriLankaTimeParts().timeString;
 
     setIsSavingWalkIn(true);
     try {
@@ -807,9 +912,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-tight">
                     Queue
                   </h1>
-                  <p className="text-xs sm:text-sm font-medium text-zinc-500 mt-0.5">
-                    {formattedToday}
-                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <p className="text-xs sm:text-sm font-medium text-zinc-500">
+                      {formattedToday}
+                    </p>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      SLST (UTC+5:30)
+                    </span>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -1125,15 +1235,28 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                 {/* Date Pill Selector in locked header */}
                 <div className="flex items-center gap-2 overflow-x-auto pt-2.5 pb-0.5 no-scrollbar">
-                  {[-1, 0, 1, 2, 3, 4, 5].map(offset => {
-                    const target = new Date();
-                    target.setDate(target.getDate() + offset);
-                    const targetIso = target.toISOString().split('T')[0];
+                  {/* Pick Any Date Button */}
+                  <label 
+                    className="relative flex flex-col items-center justify-center min-w-[50px] py-1.5 px-1.5 rounded-2xl bg-white border border-zinc-200/80 hover:border-zinc-300 cursor-pointer shadow-xs shrink-0 transition-all active:scale-95" 
+                    title="Select any date on calendar"
+                  >
+                    <input
+                      type="date"
+                      value={selectedCalendarDate}
+                      onChange={e => e.target.value && setSelectedCalendarDate(e.target.value)}
+                      className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                    />
+                    <CalendarDays className="w-4 h-4 text-[#0d6efd] mb-0.5" />
+                    <span className="text-[10px] font-bold text-zinc-700">Pick</span>
+                  </label>
+
+                  {[-3, -2, -1, 0, 1, 2, 3, 4, 5, 6].map(offset => {
+                    const targetIso = addDaysToIso(todayIso, offset);
                     const isSelected = selectedCalendarDate === targetIso;
                     const isToday = offset === 0;
 
-                    const dayName = target.toLocaleDateString('en-GB', { weekday: 'short' });
-                    const dayNum = target.getDate();
+                    const dayName = formatSriLankaDateStr(targetIso).split(',')[0];
+                    const dayNum = targetIso.split('-')[2];
 
                     return (
                       <button
@@ -1160,6 +1283,45 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
             {/* SCROLLABLE MAIN CONTENT */}
             <main className="w-full max-w-md mx-auto flex-1 px-4 pt-3.5 pb-28">
+              {/* Day Revenue & Summary Card */}
+              {(() => {
+                const dayApts = appointments.filter(a => a.date === selectedCalendarDate && a.status !== 'cancelled');
+                const dayRev = dayApts
+                  .filter(a => a.status === 'completed' || a.status === 'confirmed' || a.status === 'in_progress')
+                  .reduce((sum, a) => sum + (a.servicePrice || 0), 0);
+                const dayCompleted = dayApts.filter(a => a.status === 'completed').length;
+
+                return (
+                  <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-zinc-200/60 mb-3.5 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-semibold text-zinc-500 block">
+                        {formatSriLankaDateStr(selectedCalendarDate, { longWeekday: true })} Revenue
+                      </span>
+                      <span className="text-xl font-black text-zinc-900 mt-0.5 block">
+                        Rs. {dayRev.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xs font-semibold text-zinc-600 block">
+                        {dayApts.length} bookings · {dayCompleted} done
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAnalyticsCustomDate(selectedCalendarDate);
+                          setAnalyticsRange('custom');
+                          setActiveTab('settings');
+                          setSettingsSubView('analytics');
+                        }}
+                        className="text-xs text-[#0d6efd] font-bold hover:underline mt-0.5 inline-block"
+                      >
+                        View in Analytics ›
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Appointments for Selected Date */}
               <div className="space-y-3">
                 {appointments.filter(a => a.date === selectedCalendarDate && a.status !== 'cancelled').length === 0 ? (
@@ -1680,65 +1842,274 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] app-header-safe-top"
                 >
                   <div className="w-full max-w-md mx-auto px-4 pt-1 pb-2">
-                    <button
-                      type="button"
-                      onClick={() => setSettingsSubView('root')}
-                      className="flex items-center gap-1 text-[#0d6efd] font-semibold text-sm hover:underline mb-0.5"
-                    >
-                      <ChevronLeft className="w-4 h-4 -ml-1 stroke-[2.2]" />
-                      Settings
-                    </button>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setSettingsSubView('root')}
+                        className="flex items-center gap-1 text-[#0d6efd] font-semibold text-sm hover:underline"
+                      >
+                        <ChevronLeft className="w-4 h-4 -ml-1 stroke-[2.2]" />
+                        Settings
+                      </button>
+
+                      {/* Sri Lanka Time Confirmation Pill */}
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Sri Lanka Time (SLST)
+                      </span>
+                    </div>
 
                     <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-tight">
-                      Analytics
+                      Analytics & Revenue
                     </h1>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      Filter earnings by day, period, or stylist
+                    </p>
                   </div>
                 </header>
 
                 {/* SCROLLABLE MAIN CONTENT */}
-                <main className="w-full max-w-md mx-auto flex-1 px-4 pt-3.5 pb-28 space-y-4">
-                  {/* Overview Cards */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-white p-4 rounded-2xl shadow-sm border border-zinc-200/60">
-                      <span className="text-xs font-semibold text-zinc-500 block">All-time Revenue</span>
-                      <span className="text-xl font-black text-zinc-900 mt-1 block">
-                        Rs. {appointments.filter(a => a.status === 'completed' || a.status === 'confirmed').reduce((sum, a) => sum + a.servicePrice, 0).toLocaleString()}
+                <main className="w-full max-w-md mx-auto flex-1 px-4 pt-3 pb-28 space-y-3.5">
+                  {/* Period Filter Tabs */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                      {[
+                        { id: 'today', label: 'Today' },
+                        { id: 'yesterday', label: 'Yesterday' },
+                        { id: 'week', label: '7 Days' },
+                        { id: 'month', label: 'This Month' },
+                        { id: 'all', label: 'All Time' },
+                        { id: 'custom', label: 'Pick Day' }
+                      ].map(tab => (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setAnalyticsRange(tab.id as AnalyticsRange)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                            analyticsRange === tab.id
+                              ? 'bg-[#0d6efd] text-white shadow-sm'
+                              : 'bg-white text-zinc-600 hover:text-zinc-900 border border-zinc-200/70'
+                          }`}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Custom Date Input (when 'custom' or 'Pick Day' is selected) */}
+                    {analyticsRange === 'custom' && (
+                      <div className="bg-white p-3 rounded-2xl border border-blue-200 shadow-xs flex items-center justify-between gap-3 animate-in fade-in duration-200">
+                        <div className="flex items-center gap-2">
+                          <CalendarDays className="w-4 h-4 text-[#0d6efd]" />
+                          <span className="text-xs font-semibold text-zinc-700">Select Date:</span>
+                        </div>
+                        <input
+                          type="date"
+                          value={analyticsCustomDate}
+                          onChange={e => e.target.value && setAnalyticsCustomDate(e.target.value)}
+                          className="px-3 py-1 bg-zinc-100 rounded-lg text-xs font-bold text-zinc-900 border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-[#0d6efd]"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Hero Metric Card for Selected Period */}
+                  <div className="bg-gradient-to-br from-white via-white to-blue-50/40 p-4 rounded-2xl shadow-sm border border-zinc-200/80">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                        {analyticsData.rangeLabel}
+                      </span>
+                      <span className="text-[11px] font-semibold text-[#0d6efd] bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
+                        {analyticsData.rangeSubLabel}
                       </span>
                     </div>
-                    <div className="bg-white p-4 rounded-2xl shadow-sm border border-zinc-200/60">
-                      <span className="text-xs font-semibold text-zinc-500 block">Total Appointments</span>
-                      <span className="text-xl font-black text-zinc-900 mt-1 block">
-                        {appointments.length}
+
+                    <div className="my-2">
+                      <span className="text-3xl sm:text-4xl font-black text-zinc-900 tracking-tight block">
+                        Rs. {analyticsData.revenue.toLocaleString()}
                       </span>
+                    </div>
+
+                    {/* Sub Metrics Grid */}
+                    <div className="grid grid-cols-3 gap-2 pt-3 border-t border-zinc-100 text-center">
+                      <div className="bg-zinc-50/80 rounded-xl p-2">
+                        <span className="text-xs text-zinc-500 font-medium block">Total Jobs</span>
+                        <span className="text-base font-extrabold text-zinc-900 block mt-0.5">
+                          {analyticsData.count}
+                        </span>
+                      </div>
+                      <div className="bg-zinc-50/80 rounded-xl p-2">
+                        <span className="text-xs text-zinc-500 font-medium block">Completed</span>
+                        <span className="text-base font-extrabold text-emerald-600 block mt-0.5">
+                          {analyticsData.completedCount}
+                        </span>
+                      </div>
+                      <div className="bg-zinc-50/80 rounded-xl p-2">
+                        <span className="text-xs text-zinc-500 font-medium block">Avg / Job</span>
+                        <span className="text-base font-extrabold text-zinc-900 block mt-0.5">
+                          Rs. {analyticsData.avgJob.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* All-time cumulative badge if currently viewing another range */}
+                  {analyticsRange !== 'all' && (
+                    <div className="bg-white p-3 rounded-2xl border border-zinc-200/60 shadow-xs flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4 text-emerald-500" />
+                        <span className="text-xs font-semibold text-zinc-600">All-time Cumulative Revenue:</span>
+                      </div>
+                      <span className="text-sm font-extrabold text-zinc-900">
+                        Rs. {analyticsData.allTimeRevenue.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Daily Revenue Breakdown */}
+                  <div>
+                    <div className="flex items-center justify-between px-1 mb-2">
+                      <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase">
+                        DAILY REVENUE HISTORY
+                      </span>
+                      <span className="text-[11px] text-zinc-500">Tap day to inspect</span>
+                    </div>
+
+                    <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
+                      {analyticsData.dailyHistory.length === 0 ? (
+                        <div className="p-6 text-center text-zinc-400 text-xs">
+                          No revenue records found yet.
+                        </div>
+                      ) : (
+                        analyticsData.dailyHistory.map(dayItem => {
+                          const isToday = dayItem.date === todayIso;
+                          const isYesterday = dayItem.date === addDaysToIso(todayIso, -1);
+                          const isCurrentCustom = analyticsRange === 'custom' && analyticsCustomDate === dayItem.date;
+
+                          let dayTitle = formatSriLankaDateStr(dayItem.date, { showYear: true });
+                          if (isToday) dayTitle = `Today (${formatSriLankaDateStr(dayItem.date)})`;
+                          else if (isYesterday) dayTitle = `Yesterday (${formatSriLankaDateStr(dayItem.date)})`;
+
+                          return (
+                            <button
+                              key={dayItem.date}
+                              type="button"
+                              onClick={() => {
+                                setAnalyticsCustomDate(dayItem.date);
+                                setAnalyticsRange('custom');
+                              }}
+                              className={`w-full p-3.5 flex items-center justify-between text-left transition-colors ${
+                                isCurrentCustom ? 'bg-blue-50/60' : 'hover:bg-zinc-50'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                                  isToday ? 'bg-[#0d6efd] text-white' : 'bg-zinc-100 text-zinc-700'
+                                }`}>
+                                  {dayItem.date.split('-')[2]}
+                                </div>
+                                <div>
+                                  <h5 className="font-bold text-sm text-zinc-900 leading-tight">
+                                    {dayTitle}
+                                  </h5>
+                                  <span className="text-xs text-zinc-500">
+                                    {dayItem.count} booking{dayItem.count === 1 ? '' : 's'} · {dayItem.completedCount} done
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="text-right">
+                                <span className="font-black text-sm text-zinc-900 block">
+                                  Rs. {dayItem.revenue.toLocaleString()}
+                                </span>
+                                <span className="text-[10px] text-[#0d6efd] font-bold">
+                                  {isCurrentCustom ? 'Selected' : 'View details ›'}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })
+                      )}
                     </div>
                   </div>
 
                   {/* Stylist Breakdown */}
-                  <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase mt-5 mb-2 block px-1">
-                    STYLIST BREAKDOWN
-                  </span>
-                  <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
-                    {staff.map(st => {
-                      const staffApts = appointments.filter(a => 
-                        a.staffId === st.id || a.staffName.toLowerCase().includes(st.name.toLowerCase())
-                      );
-                      const staffRev = staffApts
-                        .filter(a => a.status === 'completed' || a.status === 'confirmed')
-                        .reduce((sum, a) => sum + a.servicePrice, 0);
-
-                      return (
+                  <div>
+                    <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase mb-2 block px-1">
+                      STYLIST BREAKDOWN ({analyticsData.rangeLabel.toUpperCase()})
+                    </span>
+                    <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
+                      {analyticsData.stylistStats.map(st => (
                         <div key={st.id} className="p-3.5 flex items-center justify-between">
-                          <div>
-                            <h5 className="font-bold text-sm text-zinc-900">{st.name}</h5>
-                            <span className="text-xs text-zinc-500">{staffApts.length} bookings</span>
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-full bg-[#0d6efd]/10 text-[#0d6efd] font-bold text-xs flex items-center justify-center shrink-0">
+                              {st.name.charAt(0)}
+                            </div>
+                            <div>
+                              <h5 className="font-bold text-sm text-zinc-900">{st.name}</h5>
+                              <span className="text-xs text-zinc-500">{st.bookingsCount} booking{st.bookingsCount === 1 ? '' : 's'} in this period</span>
+                            </div>
                           </div>
-                          <span className="font-bold text-sm text-zinc-900">
-                            Rs. {staffRev.toLocaleString()}
+                          <span className="font-extrabold text-sm text-zinc-900">
+                            Rs. {st.revenue.toLocaleString()}
                           </span>
                         </div>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
+
+                  {/* Itemized Jobs List for Selected Day/Range */}
+                  {(analyticsRange === 'today' || analyticsRange === 'yesterday' || analyticsRange === 'custom') && (
+                    <div>
+                      <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase mb-2 block px-1">
+                        RECORDED JOBS ({analyticsData.filtered.length})
+                      </span>
+
+                      <div className="space-y-2.5">
+                        {analyticsData.filtered.length === 0 ? (
+                          <div className="bg-white rounded-2xl p-6 text-center text-zinc-400 border border-zinc-200/60 text-xs">
+                            No appointments or walk-in jobs recorded for this date.
+                          </div>
+                        ) : (
+                          analyticsData.filtered.map(apt => (
+                            <div
+                              key={apt.id}
+                              className="bg-white p-3.5 rounded-2xl border border-zinc-200/60 shadow-xs flex items-center justify-between gap-3"
+                            >
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h6 className="font-bold text-sm text-zinc-900">{apt.customerName}</h6>
+                                  {apt.isWalkIn && (
+                                    <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-bold">
+                                      Walk-in
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-zinc-500 mt-0.5">
+                                  {apt.serviceName} · {apt.timeSlot} · {apt.staffName.split(' ')[0]}
+                                </p>
+                              </div>
+
+                              <div className="text-right shrink-0">
+                                <span className="font-black text-sm text-zinc-900 block">
+                                  Rs. {apt.servicePrice.toLocaleString()}
+                                </span>
+                                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full inline-block mt-0.5 ${
+                                  apt.status === 'completed'
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : apt.status === 'in_progress'
+                                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                      : 'bg-blue-50 text-blue-700 border border-blue-200'
+                                }`}>
+                                  {apt.status === 'in_progress' ? 'In Chair' : apt.status}
+                                </span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </main>
               </div>
             )}
