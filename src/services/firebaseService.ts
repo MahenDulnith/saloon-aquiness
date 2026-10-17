@@ -21,6 +21,30 @@ const COLLECTIONS = {
   APPOINTMENTS: "appointments",
 };
 
+/**
+ * Strips any undefined fields recursively so Firestore setDoc / updateDoc never rejects the payload
+ */
+function sanitizeForFirestore<T>(data: T): T {
+  if (data === null || data === undefined) {
+    return null as any;
+  }
+  if (Array.isArray(data)) {
+    return data
+      .filter(item => item !== undefined)
+      .map(item => sanitizeForFirestore(item)) as any;
+  }
+  if (typeof data === 'object' && !(data instanceof Date)) {
+    const clean: any = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) {
+        clean[key] = sanitizeForFirestore(value);
+      }
+    }
+    return clean;
+  }
+  return data;
+}
+
 export const FirebaseService = {
   // Sync & Seed
   async initializeDatabase(): Promise<void> {
@@ -32,7 +56,7 @@ export const FirebaseService = {
       if (servicesSnap.empty) {
         console.log("Seeding initial services to Cloud Firestore...");
         for (const s of INITIAL_SERVICES) {
-          await setDoc(doc(db, COLLECTIONS.SERVICES, s.id), s);
+          await setDoc(doc(db, COLLECTIONS.SERVICES, s.id), sanitizeForFirestore(s));
         }
       }
 
@@ -41,7 +65,7 @@ export const FirebaseService = {
       if (staffSnap.empty) {
         console.log("Seeding initial staff to Cloud Firestore...");
         for (const st of INITIAL_STAFF) {
-          await setDoc(doc(db, COLLECTIONS.STAFF, st.id), st);
+          await setDoc(doc(db, COLLECTIONS.STAFF, st.id), sanitizeForFirestore(st));
         }
       }
 
@@ -50,7 +74,7 @@ export const FirebaseService = {
       if (aptSnap.empty) {
         console.log("Seeding sample appointments to Cloud Firestore...");
         for (const a of INITIAL_APPOINTMENTS) {
-          await setDoc(doc(db, COLLECTIONS.APPOINTMENTS, a.id), a);
+          await setDoc(doc(db, COLLECTIONS.APPOINTMENTS, a.id), sanitizeForFirestore(a));
         }
       }
     } catch (error) {
@@ -81,7 +105,7 @@ export const FirebaseService = {
     if (!isFirebaseConfigured()) return;
 
     try {
-      await setDoc(doc(db, COLLECTIONS.SERVICES, service.id), service);
+      await setDoc(doc(db, COLLECTIONS.SERVICES, service.id), sanitizeForFirestore(service));
     } catch (e) {
       console.error("Firestore error updating service:", e);
     }
@@ -120,7 +144,7 @@ export const FirebaseService = {
     if (!isFirebaseConfigured()) return updated;
 
     try {
-      await setDoc(doc(db, COLLECTIONS.STAFF, staffMember.id), staffMember);
+      await setDoc(doc(db, COLLECTIONS.STAFF, staffMember.id), sanitizeForFirestore(staffMember));
     } catch (e) {
       console.error("Firestore error updating staff:", e);
     }

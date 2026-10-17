@@ -321,16 +321,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       id: editingStaff ? editingStaff.id : `staff-${Date.now().toString(36)}`,
       name: staffFormName.trim(),
       role: staffFormRole === 'Admin' ? 'Admin' : 'Stylist',
-      specialty: editingStaff ? editingStaff.specialty : 'Hair & Beard Styling',
-      rating: editingStaff ? editingStaff.rating : 5.0,
-      reviewsCount: editingStaff ? editingStaff.reviewsCount : 1,
+      specialty: editingStaff?.specialty || 'Hair & Beard Styling',
+      rating: editingStaff?.rating ?? 5.0,
+      reviewsCount: editingStaff?.reviewsCount ?? 1,
       avatar: staffFormAvatar.trim(),
       email: staffFormEmail.trim() || `${firstName.toLowerCase()}@saloonaquiness.lk`,
-      phone: staffFormPhone.trim(),
+      phone: staffFormPhone.trim() || '',
       pin: staffFormPin.trim() || '1234',
       available: staffFormActive,
-      workingDays: editingStaff ? editingStaff.workingDays : [1, 2, 3, 4, 5, 6],
-      servicesOffered: editingStaff ? editingStaff.servicesOffered : ['all']
+      workingDays: editingStaff?.workingDays || [1, 2, 3, 4, 5, 6],
+      servicesOffered: editingStaff?.servicesOffered || ['all']
     };
 
     await FirebaseService.addOrUpdateStaff(staffMemberToSave);
@@ -443,8 +443,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       description: serviceFormDescription.trim(),
       popular: editingService ? editingService.popular : false,
       active: serviceFormActive,
-      offeredBy: ['all'],
-      image: serviceFormImage.trim() || undefined
+      offeredBy: (editingService && editingService.offeredBy) ? editingService.offeredBy : ['all'],
+      image: serviceFormImage.trim() || ''
     };
 
     await FirebaseService.addOrUpdateService(serviceToSave);
