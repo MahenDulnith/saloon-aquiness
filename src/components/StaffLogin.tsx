@@ -266,10 +266,10 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
         {isDark ? <Sun className="w-5 h-5 stroke-[2.2]" /> : <Moon className="w-5 h-5 stroke-[2.2]" />}
       </button>
 
-      {/* Main Full-Height Container with Exact Mockup Order */}
+      {/* Main Full-Height Container */}
       <div className="relative w-full max-w-[340px] sm:max-w-[360px] min-h-[100dvh] flex flex-col justify-between py-5 sm:py-7 px-3">
         
-        {/* UPPER SECTION */}
+        {/* UPPER SECTION: Logo, Title, Segmented Switcher, Staff Selector */}
         <div className="w-full flex flex-col items-center">
           
           {/* 1. Top Official Logo with Gold Glow */}
@@ -387,9 +387,14 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
             </div>
           )}
 
-          {/* 5. 4 PIN Dots Indicator */}
-          {authMode === 'pin' && (
-            <div className="flex items-center justify-center gap-4 mt-12 sm:mt-16 mb-6 sm:mb-8">
+        </div>
+
+        {/* BOTTOM SECTION: PIN DOTS, BUTTON, LINK, KEYBOARD ALL GROUPED CLOSE TOGETHER AT BOTTOM */}
+        {authMode === 'pin' ? (
+          <div className="w-full flex flex-col items-center mt-auto pb-1 sm:pb-2">
+            
+            {/* 5. 4 PIN Dots Indicator - comfortably placed above the button */}
+            <div className="flex items-center justify-center gap-3.5 mb-4">
               {[0, 1, 2, 3].map((index) => {
                 const isFilled = pin.length > index;
                 return (
@@ -410,47 +415,39 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
                 );
               })}
             </div>
-          )}
 
-          {/* Error Message */}
-          {pinError && (
-            <p className="text-xs text-red-500 font-semibold text-center mb-2 animate-shake">
-              {pinError}
-            </p>
-          )}
+            {/* Error Message */}
+            {pinError && (
+              <p className="text-xs text-red-500 font-semibold text-center mb-2 animate-shake">
+                {pinError}
+              </p>
+            )}
 
-          {/* 6. PRIMARY BUTTON & LINK (DIRECTLY ABOVE KEYPAD AS IN USER'S MOCKUP) */}
-          {authMode === 'pin' && (
-            <div className="w-full flex flex-col items-center mb-4 sm:mb-5">
-              <button
-                type="button"
-                onClick={() => handleManualSubmit()}
-                className={`w-full py-3.5 sm:py-4 rounded-2xl font-bold text-sm sm:text-base active:scale-[0.99] transition-all text-center ${
-                  isDark 
-                    ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-zinc-950 shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40' 
-                    : 'bg-[#0d6efd] hover:bg-[#0b5ed7] text-white shadow-md shadow-[#0d6efd]/20'
-                }`}
-              >
-                Sign in as {currentSelectedMember.name.split(' ')[0]}
-              </button>
+            {/* 6. PRIMARY BUTTON - CLOSE TO LINK & KEYBOARD */}
+            <button
+              type="button"
+              onClick={() => handleManualSubmit()}
+              className={`w-full py-3.5 sm:py-4 rounded-2xl font-bold text-sm sm:text-base active:scale-[0.99] transition-all text-center mb-2 ${
+                isDark 
+                  ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-zinc-950 shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40' 
+                  : 'bg-[#0d6efd] hover:bg-[#0b5ed7] text-white shadow-md shadow-[#0d6efd]/20'
+              }`}
+            >
+              Sign in as {currentSelectedMember.name.split(' ')[0]}
+            </button>
 
-              <button
-                type="button"
-                onClick={onCancel}
-                className={`mt-2.5 text-xs sm:text-sm font-semibold transition-colors ${
-                  isDark ? 'text-zinc-400 hover:text-amber-400' : 'text-[#0d6efd] hover:text-[#0b5ed7]'
-                }`}
-              >
-                Back to client booking
-              </button>
-            </div>
-          )}
+            {/* 7. BACK LINK - VERY CLOSE TO KEYBOARD */}
+            <button
+              type="button"
+              onClick={onCancel}
+              className={`text-xs sm:text-sm font-semibold transition-colors mb-3 sm:mb-4 ${
+                isDark ? 'text-zinc-400 hover:text-amber-400' : 'text-[#0d6efd] hover:text-[#0b5ed7]'
+              }`}
+            >
+              Back to client booking
+            </button>
 
-        </div>
-
-        {/* 7. BOTTOM SECTION: NUMERIC KEYPAD AT THE VERY BOTTOM OF THE SCREEN */}
-        {authMode === 'pin' ? (
-          <div className="w-full pb-1 sm:pb-2 mt-auto">
+            {/* 8. NUMERIC KEYPAD PILLS AT THE VERY BOTTOM */}
             <div className="grid grid-cols-3 gap-2.5 sm:gap-3 w-full">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                 <button
@@ -496,6 +493,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({
                 <Delete className="w-6 h-6 stroke-[1.8]" />
               </button>
             </div>
+
           </div>
         ) : (
           /* EMAIL MODE FLOW */
