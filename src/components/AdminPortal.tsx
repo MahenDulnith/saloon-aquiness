@@ -246,7 +246,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   // Security guard: If a non-admin attempts to access staff management subview, redirect to root
   useEffect(() => {
-    if (!isAdmin && settingsSubView === 'staff') {
+    if (!isAdmin && settingsSubView !== 'root') {
       setSettingsSubView('root');
     }
   }, [isAdmin, settingsSubView]);
@@ -947,6 +947,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   const handleSaveService = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) return;
     if (!serviceFormName.trim()) {
       showAlert({
         title: 'Required Field',
@@ -976,6 +977,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   const handleToggleServiceActive = async (srvId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!isAdmin) return;
     const target = services.find(s => s.id === srvId);
     if (target) {
       await FirebaseService.addOrUpdateService({
@@ -989,6 +991,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   const handleDeleteService = async (srvId: string) => {
+    if (!isAdmin) return;
     confirmAction({
       title: 'Delete Service',
       message: `Are you sure you want to remove "${editingService?.name || 'this service'}" from the salon catalog?`,
@@ -1168,25 +1171,27 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
               </div>
 
-              {/* Hairline divider */}
-              <div className="border-t border-zinc-100 my-3" />
-
-              {/* Revenue Row */}
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-zinc-600 font-medium">
-                  Revenue today <strong className="text-zinc-900 font-bold ml-1">Rs. {stats.todayRevenue.toLocaleString()}</strong>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab('settings');
-                    setSettingsSubView('analytics');
-                  }}
-                  className="text-[#0d6efd] font-bold hover:underline flex items-center text-sm"
-                >
-                  Analytics ›
-                </button>
-              </div>
+              {/* Revenue Row (Admin Only) */}
+              {isAdmin && (
+                <>
+                  <div className="border-t border-zinc-100 my-3" />
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-zinc-600 font-medium">
+                      Revenue today <strong className="text-zinc-900 font-bold ml-1">Rs. {stats.todayRevenue.toLocaleString()}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('settings');
+                        setSettingsSubView('analytics');
+                      }}
+                      className="text-[#0d6efd] font-bold hover:underline flex items-center text-sm"
+                    >
+                      Analytics ›
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Segmented Control Pill: All staff vs My queue */}
@@ -1692,6 +1697,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </div>
 
                   {/* Group 1: SALON MANAGEMENT */}
+                  {isAdmin && (<>
                   <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase mt-6 mb-2 block px-1">
                     SALON MANAGEMENT
                   </span>
@@ -1715,8 +1721,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       </button>
                     )}
 
-                    {/* Services Row */}
-                    <button
+                    {/* Services Row (Admin Only) */}
+                    {isAdmin && (<button
                       type="button"
                       onClick={() => setSettingsSubView('services')}
                       className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
@@ -1729,10 +1735,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         </div>
                       </div>
                       <ChevronRight className="w-5 h-5 text-zinc-400" />
-                    </button>
+                    </button>)}
 
-                    {/* Analytics Row */}
-                    <button
+                    {/* Analytics Row (Admin Only) */}
+                    {isAdmin && (<button
                       type="button"
                       onClick={() => setSettingsSubView('analytics')}
                       className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
@@ -1745,9 +1751,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         </div>
                       </div>
                       <ChevronRight className="w-5 h-5 text-zinc-400" />
-                    </button>
+                    </button>)}
 
                   </div>
+                  </>)}
 
                   {/* Group 2: PORTAL ACCESS */}
                   <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase mt-6 mb-2 block px-1">
