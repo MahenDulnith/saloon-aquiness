@@ -21,9 +21,24 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // Services, staff and everything else behave as before.
-    match /{document=**} {
+    // Services and staff stay editable by the app (as before).
+    match /services/{id} {
       allow read, write: if true;
     }
+    match /staff/{id} {
+      allow read, write: if true;
+    }
+
+    // Security alert logs and trigger email queue (append-only).
+    match /security_alerts/{id} {
+      allow read, create: if true;
+      allow update, delete: if false;
+    }
+    match /mail/{id} {
+      allow read, create: if true;
+      allow update, delete: if false;
+    }
+
+    // Anything else is closed.
   }
 }
