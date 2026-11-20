@@ -209,6 +209,19 @@ export const App: React.FC = () => {
 
   const isAdminPortalActive = currentView === 'admin' && !!currentStaffUser;
 
+  // Offline notice: records are kept safely on the device and upload automatically
+  const [isOnline, setIsOnline] = useState<boolean>(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
+  useEffect(() => {
+    const goOnline = () => { setIsOnline(true); loadData(); };
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, [loadData]);
+
   useEffect(() => {
     if (isAdminPortalActive) {
       const metaTheme = document.querySelector('meta[name="theme-color"]');
@@ -222,6 +235,11 @@ export const App: React.FC = () => {
     <div className={`min-h-screen flex flex-col justify-between selection:bg-amber-500 selection:text-zinc-950 ${
       isAdminPortalActive ? 'bg-[#f0f2f6] text-zinc-900' : 'bg-transparent'
     }`}>
+      {!isOnline && (
+        <div className="fixed top-0 inset-x-0 z-[100] bg-amber-500 text-zinc-950 text-xs font-bold text-center py-1.5 px-3" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 6px)' }}>
+          No internet · records are saved on this phone and will upload automatically
+        </div>
+      )}
       {currentView === 'booking' ? (
         <>
           <CustomerApp 

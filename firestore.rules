@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Jobs / bookings: can be created and updated, but NEVER erased and the
+    // money fields (price, date, customer) can never be edited afterwards.
+    match /appointments/{id} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'status', 'staffId', 'staffName', 'completedAt', 'completedBy',
+        'deleted', 'deletedAt', 'deletedBy', 'paymentMethod', 'notes', 'firestoreTimestamp'
+      ]);
+      allow delete: if false;
+    }
+
+    // Permanent history of every change - append only.
+    match /auditLog/{id} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if false;
+    }
+
+    // Services, staff and everything else behave as before.
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

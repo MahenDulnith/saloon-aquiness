@@ -384,8 +384,11 @@ export const CustomerApp: React.FC<CustomerAppProps> = ({
     let createdApt: Appointment;
     try {
       createdApt = await FirebaseService.createAppointment(appointmentPayload);
-    } catch {
-      createdApt = StorageService.createAppointment(appointmentPayload);
+    } catch (err: any) {
+      // Never show "confirmed" for a booking the salon did not receive
+      setFormError(err?.message || 'We could not save your booking. Please check your connection and try again.');
+      setIsSubmitting(false);
+      return;
     }
 
     // Save to user's local bookings

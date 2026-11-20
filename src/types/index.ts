@@ -55,6 +55,11 @@ export interface Appointment {
   status: AppointmentStatus;
   notes?: string;
   isWalkIn?: boolean;
+  completedAt?: string;
+  completedBy?: string;
+  deleted?: boolean;
+  deletedAt?: string;
+  deletedBy?: string;
   paymentMethod?: string;
   createdAt: string;
 }

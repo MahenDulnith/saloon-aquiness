@@ -21,7 +21,20 @@ const COLLECTIONS = {
   SERVICES: "services",
   STAFF: "staff",
   APPOINTMENTS: "appointments",
+  AUDIT: "auditLog",
 };
+
+// Resolves 'saved' once the server confirms the write. With no signal the write stays
+// queued durably on the device, so after a few seconds we report 'queued' instead of hanging.
+// Real rejections (e.g. permission denied) still throw.
+const withSyncTimeout = (p: Promise<unknown>, ms = 6000): Promise<'saved' | 'queued'> =>
+  new Promise((resolve, reject) => {
+    const timer = setTimeout(() => resolve('queued'), ms);
+    p.then(
+      () => { clearTimeout(timer); resolve('saved'); },
+      (err) => { clearTimeout(timer); reject(err); }
+    );
+  });
 
 /**
  * Strips any undefined fields recursively so Firestore setDoc / updateDoc never rejects the payload
@@ -230,7 +243,7 @@ export const FirebaseService = {
       const snap = await getDocs(q);
       const list = snap.docs
         .map(d => d.data() as Appointment)
-        .filter(a => !['apt-101', 'apt-102', 'apt-103'].includes(a.id));
+        .filter(a => !['apt-101', 'apt-102', 'apt-103'].includes(a.id) && !a.deleted);
       return list;
     } catch (e) {
       console.warn("Error reading appointments from Firestore, using local cache:", e);
@@ -238,43 +251,107 @@ export const FirebaseService = {
     }
   },
 
-  async createAppointment(aptData: Omit<Appointment, 'id' | 'createdAt' | 'status'> & { status?: AppointmentStatus }): Promise<Appointment> {
+  // Permanent history of every money-related change (who / what / when)
+  logAudit(entry: {
+    action: string;
+    appointmentId: string;
+    actor?: string;
+    before?: unknown;
+    after?: unknown;
+  }): void {
+    if (!isFirebaseConfigured()) return;
+    try {
+      addDoc(collection(db, COLLECTIONS.AUDIT), sanitizeForFirestore({
+        ...entry,
+        actor: entry.actor || 'unknown',
+        at: new Date().toISOString(),
+        serverAt: serverTimestamp()
+      })).catch(e => console.warn("Audit log write queued/failed:", e));
+    } catch (e) {
+      console.warn("Audit log error:", e);
+    }
+  },
+
+  async createAppointment(aptData: Omit<Appointment, 'id' | 'createdAt' | 'status'> & { status?: AppointmentStatus }, actor?: string): Promise<Appointment> {
     const localApt = StorageService.createAppointment(aptData);
     if (!isFirebaseConfigured()) return localApt;
 
+    const record = localApt.status === 'completed'
+      ? { ...localApt, completedAt: new Date().toISOString(), completedBy: actor || 'unknown' }
+      : localApt;
+
     try {
-      await setDoc(doc(db, COLLECTIONS.APPOINTMENTS, localApt.id), sanitizeForFirestore({
-        ...localApt,
-        firestoreTimestamp: serverTimestamp()
-      }));
+      const result = await withSyncTimeout(
+        setDoc(doc(db, COLLECTIONS.APPOINTMENTS, localApt.id), sanitizeForFirestore({
+          ...record,
+          firestoreTimestamp: serverTimestamp()
+        }))
+      );
+      // 'queued' = no signal right now; the device keeps it and uploads automatically.
+      if (result === 'queued') console.warn("Appointment saved on device, waiting to sync.");
     } catch (e) {
+      // The cloud refused the record: do NOT pretend it was saved.
+      StorageService.deleteAppointment(localApt.id);
       console.error("Firestore error saving appointment:", e);
+      throw new Error("Could not save the record. Please check your connection and try again.");
     }
-    return localApt;
+    this.logAudit({ action: 'create', appointmentId: localApt.id, actor, after: record });
+    return record;
   },
 
-  async updateAppointmentStatus(id: string, newStatus: AppointmentStatus): Promise<void> {
-    StorageService.updateAppointmentStatus(id, newStatus);
+  async updateAppointmentStatus(
+    id: string,
+    newStatus: AppointmentStatus,
+    actor?: { id?: string; name?: string }
+  ): Promise<void> {
+    const before = StorageService.getAppointments().find(a => a.id === id);
+    const patch: Partial<Appointment> = { status: newStatus };
+
+    if (newStatus === 'completed') {
+      patch.completedAt = new Date().toISOString();
+      patch.completedBy = actor?.name || 'unknown';
+      // A job booked as "Any" belongs to whoever actually completed it, so it is paid correctly
+      if (before && before.staffId === 'any' && actor?.id) {
+        patch.staffId = actor.id;
+        patch.staffName = actor.name || before.staffName;
+      }
+    }
+
+    StorageService.patchAppointment(id, patch);
     if (!isFirebaseConfigured()) return;
 
     try {
-      await updateDoc(doc(db, COLLECTIONS.APPOINTMENTS, id), {
-        status: newStatus
-      });
+      await withSyncTimeout(updateDoc(doc(db, COLLECTIONS.APPOINTMENTS, id), sanitizeForFirestore(patch)));
     } catch (e) {
       console.error("Firestore error updating appointment status:", e);
+      if (before) StorageService.patchAppointment(id, { status: before.status, staffId: before.staffId, staffName: before.staffName });
+      throw new Error("Could not update the job. Please check your connection and try again.");
     }
+    this.logAudit({
+      action: `status:${before?.status ?? '?'}->${newStatus}`,
+      appointmentId: id,
+      actor: actor?.name,
+      before: before ? { status: before.status, staffId: before.staffId, price: before.servicePrice } : undefined,
+      after: patch
+    });
   },
 
-  async deleteAppointment(id: string): Promise<void> {
+  // Records are never erased: "delete" hides the job but keeps it (and its audit trail) forever.
+  async deleteAppointment(id: string, actor?: string): Promise<void> {
+    const before = StorageService.getAppointments().find(a => a.id === id);
+    const patch = { deleted: true, deletedAt: new Date().toISOString(), deletedBy: actor || 'unknown' };
+
     StorageService.deleteAppointment(id);
     if (!isFirebaseConfigured()) return;
 
     try {
-      await deleteDoc(doc(db, COLLECTIONS.APPOINTMENTS, id));
+      await withSyncTimeout(updateDoc(doc(db, COLLECTIONS.APPOINTMENTS, id), sanitizeForFirestore(patch)));
     } catch (e) {
       console.error("Firestore error deleting appointment:", e);
+      if (before) StorageService.setAppointments([before, ...StorageService.getAppointments()]);
+      throw new Error("Could not remove the job. Please check your connection and try again.");
     }
+    this.logAudit({ action: 'delete', appointmentId: id, actor, before });
   },
 
   // Real-time listener for live sync
@@ -288,7 +365,7 @@ export const FirebaseService = {
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const list = snapshot.docs
           .map(d => d.data() as Appointment)
-          .filter(a => !['apt-101', 'apt-102', 'apt-103'].includes(a.id));
+          .filter(a => !['apt-101', 'apt-102', 'apt-103'].includes(a.id) && !a.deleted);
         onUpdate(list);
       }, (err) => {
         console.warn("Real-time listener note (offline or permission):", err);

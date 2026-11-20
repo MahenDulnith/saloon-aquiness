@@ -597,18 +597,62 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   // Status updates - synced live to Firestore & localStorage
   const handleUpdateStatus = async (id: string, status: AppointmentStatus) => {
-    await FirebaseService.updateAppointmentStatus(id, status);
-    onAppointmentsUpdated();
+    const current = appointments.find(a => a.id === id);
+    // Money safety: once a job is completed only the owner may change it back
+    if (current && current.status === 'completed' && status !== 'completed' && !isAdmin) {
+      showAlert({
+        title: 'Completed Job Locked',
+        message: 'A completed job is part of the earnings record. Only the owner can change it.',
+        variant: 'warning'
+      });
+      return;
+    }
+    try {
+      await FirebaseService.updateAppointmentStatus(id, status, { id: myStaffId, name: activeUser.name });
+      onAppointmentsUpdated();
+    } catch (err: any) {
+      showAlert({
+        title: 'Not Saved',
+        message: err?.message || 'Could not update this job. Please try again.',
+        variant: 'danger'
+      });
+      onAppointmentsUpdated();
+    }
   };
 
   const handleDeleteAppointment = (id: string) => {
+    const target = appointments.find(a => a.id === id);
+    if (!isAdmin) {
+      showAlert({
+        title: 'Permission Denied',
+        message: 'Only the owner can remove appointment records.',
+        variant: 'danger'
+      });
+      return;
+    }
+    if (target?.status === 'completed') {
+      showAlert({
+        title: 'Record Protected',
+        message: 'Completed jobs are permanent earnings records and cannot be deleted.',
+        variant: 'warning'
+      });
+      return;
+    }
     confirmAction({
-      title: 'Delete Appointment',
-      message: 'Are you sure you want to permanently delete this appointment record?',
-      confirmText: 'Delete',
+      title: 'Remove Appointment',
+      message: 'Remove this appointment from the queue? A private copy stays in the permanent record history.',
+      confirmText: 'Remove',
       variant: 'danger',
       onConfirm: async () => {
-        await FirebaseService.deleteAppointment(id);
+        try {
+          await FirebaseService.deleteAppointment(id, activeUser.name);
+        } catch (err: any) {
+          showAlert({
+            title: 'Not Removed',
+            message: err?.message || 'Could not remove this job. Please try again.',
+            variant: 'danger'
+          });
+        }
         onAppointmentsUpdated();
         setActionAppointment(null);
       }
@@ -1176,7 +1220,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         isWalkIn: true
       };
 
-      await FirebaseService.createAppointment(newWalkInApt);
+      await FirebaseService.createAppointment(newWalkInApt, activeUser.name);
       onAppointmentsUpdated();
       setShowWalkInModal(false);
 
@@ -3476,13 +3520,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </button>
               )}
 
+              {isAdmin && actionAppointment.status !== 'completed' && (
               <button
                 type="button"
                 onClick={() => handleDeleteAppointment(actionAppointment.id)}
                 className="w-full py-3 px-4 rounded-xl bg-red-50 text-red-600 font-bold text-sm flex items-center justify-center gap-2"
               >
-                <Trash2 className="w-4 h-4" /> Delete appointment
+                <Trash2 className="w-4 h-4" /> Remove appointment
               </button>
+              )}
             </div>
 
             <button

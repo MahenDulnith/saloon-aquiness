@@ -138,7 +138,7 @@ export const StorageService = {
   getAppointments(): Appointment[] {
     const list = getItem<Appointment[]>(STORAGE_KEYS.APPOINTMENTS, []);
     // Filter out any mock/demo appointments from legacy storage
-    const cleaned = (list || []).filter(a => !['apt-101', 'apt-102', 'apt-103'].includes(a.id));
+    const cleaned = (list || []).filter(a => !['apt-101', 'apt-102', 'apt-103'].includes(a.id) && !a.deleted);
     if (cleaned.length !== (list || []).length) {
       setItem(STORAGE_KEYS.APPOINTMENTS, cleaned);
     }
@@ -146,7 +146,7 @@ export const StorageService = {
   },
 
   setAppointments(list: Appointment[]): void {
-    const cleaned = (list || []).filter(a => !['apt-101', 'apt-102', 'apt-103'].includes(a.id));
+    const cleaned = (list || []).filter(a => !['apt-101', 'apt-102', 'apt-103'].includes(a.id) && !a.deleted);
     setItem(STORAGE_KEYS.APPOINTMENTS, cleaned);
   },
 
@@ -164,8 +164,12 @@ export const StorageService = {
   },
 
   updateAppointmentStatus(id: string, newStatus: AppointmentStatus): Appointment[] {
+    return this.patchAppointment(id, { status: newStatus });
+  },
+
+  patchAppointment(id: string, patch: Partial<Appointment>): Appointment[] {
     const current = this.getAppointments();
-    const updated = current.map(a => a.id === id ? { ...a, status: newStatus } : a);
+    const updated = current.map(a => a.id === id ? { ...a, ...patch } : a);
     setItem(STORAGE_KEYS.APPOINTMENTS, updated);
     return updated;
   },
