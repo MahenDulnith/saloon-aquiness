@@ -63,6 +63,32 @@ interface AdminPortalProps {
   onLockPortal?: () => void;
 }
 
+// ---------- Earnings (salon salary split) ----------
+// Each stylist keeps STAFF_SHARE_PERCENT of the jobs they complete; the rest goes to the owner.
+// The owner keeps 100% of their own jobs plus the remaining share of every other stylist's jobs.
+const STAFF_SHARE_PERCENT = 50;
+const OWNER_STAFF_ID = 'staff-1';
+
+const calcEarnings = (jobs: Appointment[], knownStaffIds: Set<string>, id: string) => {
+  let own = 0;
+  let ownCount = 0;
+  let team = 0;
+  let teamCount = 0;
+  for (const a of jobs) {
+    if (!knownStaffIds.has(a.staffId)) continue;
+    if (a.staffId === id) {
+      own += a.servicePrice || 0;
+      ownCount++;
+    } else if (id === OWNER_STAFF_ID) {
+      team += a.servicePrice || 0;
+      teamCount++;
+    }
+  }
+  const ownEarned = id === OWNER_STAFF_ID ? own : Math.round((own * STAFF_SHARE_PERCENT) / 100);
+  const teamEarned = Math.round((team * (100 - STAFF_SHARE_PERCENT)) / 100);
+  return { own, ownCount, ownEarned, team, teamCount, teamEarned, total: ownEarned + teamEarned };
+};
+
 export const AdminPortal: React.FC<AdminPortalProps> = ({
   currentUser,
   appointments,
@@ -83,7 +109,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Settings subviews: 'root' | 'staff' | 'services' | 'analytics'
-  const [settingsSubView, setSettingsSubView] = useState<'root' | 'staff' | 'services' | 'analytics'>('root');
+  const [settingsSubView, setSettingsSubView] = useState<'root' | 'staff' | 'services' | 'analytics' | 'earnings'>('root');
 
   // Modals
   const [showStaffModal, setShowStaffModal] = useState<boolean>(false);
@@ -246,7 +272,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   // Security guard: If a non-admin attempts to access staff management subview, redirect to root
   useEffect(() => {
-    if (!isAdmin && settingsSubView !== 'root') {
+    if (!isAdmin && settingsSubView !== 'root' && settingsSubView !== 'earnings') {
       setSettingsSubView('root');
     }
   }, [isAdmin, settingsSubView]);
@@ -268,6 +294,88 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
     return { pendingCount, inChairCount, bookedTodayCount, todayRevenue };
   }, [appointments, todayIso]);
+
+  // ---------- My Earnings ----------
+  const [earningsRange, setEarningsRange] = useState<AnalyticsRange>('today');
+  const [earningsCustomDate, setEarningsCustomDate] = useState<string>(() => todayIso);
+  const [earningsStaffId, setEarningsStaffId] = useState<string | null>(null);
+
+  // Which staff record is the logged-in user
+  const myStaffId = useMemo(() => {
+    const m =
+      staff.find(s => s.id === activeUser.id) ||
+      staff.find(s => s.name.toLowerCase() === activeUser.name.toLowerCase());
+    return m ? m.id : activeUser.id;
+  }, [staff, activeUser]);
+
+  // Today's earnings for the logged-in user (shown on the Queue card)
+  const myTodayEarnings = useMemo(() => {
+    const jobs = appointments.filter(a => a.status === 'completed' && a.date === todayIso);
+    return calcEarnings(jobs, new Set(staff.map(s => s.id)), myStaffId);
+  }, [appointments, staff, todayIso, myStaffId]);
+
+  const earningsData = useMemo(() => {
+    const yesterdayIso = addDaysToIso(todayIso, -1);
+    const weekAgoIso = addDaysToIso(todayIso, -6);
+    const monthPrefix = todayIso.slice(0, 7);
+
+    const inRange = (d: string) => {
+      if (earningsRange === 'today') return d === todayIso;
+      if (earningsRange === 'yesterday') return d === yesterdayIso;
+      if (earningsRange === 'week') return d >= weekAgoIso && d <= todayIso;
+      if (earningsRange === 'month') return d.startsWith(monthPrefix);
+      if (earningsRange === 'custom') return d === earningsCustomDate;
+      return true;
+    };
+
+    // Only completed jobs count towards earnings
+    const jobs = appointments.filter(a => a.status === 'completed' && inRange(a.date));
+    const staffIds = new Set(staff.map(s => s.id));
+    const unassigned = jobs.filter(a => !staffIds.has(a.staffId));
+
+    // Non-admins can only ever see their own numbers
+    const viewId = isAdmin ? (earningsStaffId || myStaffId) : myStaffId;
+    const viewStaff = staff.find(s => s.id === viewId);
+    const summary = calcEarnings(jobs, staffIds, viewId);
+
+    // Day-by-day history for the viewed person
+    const dayMap = new Map<string, Appointment[]>();
+    jobs.forEach(a => {
+      if (!staffIds.has(a.staffId)) return;
+      if (a.staffId !== viewId && viewId !== OWNER_STAFF_ID) return;
+      dayMap.set(a.date, [...(dayMap.get(a.date) || []), a]);
+    });
+    const daily = Array.from(dayMap.entries())
+      .map(([date, list]) => ({ date, ...calcEarnings(list, staffIds, viewId) }))
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+
+    // Per-staff table (admin only)
+    const rows = staff.map(s => ({ staff: s, ...calcEarnings(jobs, staffIds, s.id) }));
+    const ownerCutFromTeam = rows.reduce(
+      (sum, r) => sum + (r.staff.id === OWNER_STAFF_ID ? 0 : r.own - r.ownEarned),
+      0
+    );
+
+    let rangeLabel = "Today";
+    if (earningsRange === 'yesterday') rangeLabel = 'Yesterday';
+    else if (earningsRange === 'week') rangeLabel = 'Last 7 Days';
+    else if (earningsRange === 'month') rangeLabel = 'This Month';
+    else if (earningsRange === 'all') rangeLabel = 'All Time';
+    else if (earningsRange === 'custom') rangeLabel = formatSriLankaDateStr(earningsCustomDate, { longWeekday: true });
+
+    return {
+      viewId,
+      viewName: viewStaff?.name || activeUser.name,
+      viewIsOwner: viewId === OWNER_STAFF_ID,
+      summary,
+      daily,
+      rows,
+      ownerCutFromTeam,
+      unassignedCount: unassigned.length,
+      unassignedValue: unassigned.reduce((s, a) => s + (a.servicePrice || 0), 0),
+      rangeLabel
+    };
+  }, [appointments, staff, todayIso, earningsRange, earningsCustomDate, earningsStaffId, isAdmin, myStaffId, activeUser]);
 
   // Comprehensive Analytics & Revenue computations
   const analyticsData = useMemo(() => {
@@ -1171,6 +1279,25 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
               </div>
 
+              {/* My earnings today (everyone) */}
+              <div className="border-t border-zinc-100 my-3" />
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-zinc-600 font-medium">
+                  My earnings today <strong className="text-[#198754] font-bold ml-1">Rs. {myTodayEarnings.total.toLocaleString()}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEarningsStaffId(null);
+                    setActiveTab('settings');
+                    setSettingsSubView('earnings');
+                  }}
+                  className="text-[#0d6efd] font-bold hover:underline flex items-center text-sm"
+                >
+                  Details ›
+                </button>
+              </div>
+
               {/* Revenue Row (Admin Only) */}
               {isAdmin && (
                 <>
@@ -1696,6 +1823,32 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-zinc-600 transition-colors shrink-0" />
                   </div>
 
+                  {/* Group 0: MY WORK (everyone) */}
+                  <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase mt-6 mb-2 block px-1">
+                    MY WORK
+                  </span>
+                  <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEarningsStaffId(null);
+                        setSettingsSubView('earnings');
+                      }}
+                      className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50/60 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <TrendingUp className="w-5 h-5 text-[#198754]" />
+                        <div>
+                          <span className="font-bold text-sm text-zinc-900 block">My Earnings</span>
+                          <span className="text-xs text-zinc-500">
+                            {isAdmin ? "Your share & every stylist's daily earnings" : 'Today & past days'}
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-zinc-400" />
+                    </button>
+                  </div>
+
                   {/* Group 1: SALON MANAGEMENT */}
                   {isAdmin && (<>
                   <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase mt-6 mb-2 block px-1">
@@ -2043,7 +2196,197 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             )}
 
             {/* SUBVIEW 4: ANALYTICS */}
-            {settingsSubView === 'analytics' && (
+            {settingsSubView === 'earnings' && (
+              <div className="flex flex-col w-full animate-fadeIn">
+                <header className="sticky top-0 z-30 w-full bg-[#f0f2f6]/95 backdrop-blur-md border-b border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] app-header-safe-top">
+                  <div className="w-full max-w-md mx-auto px-4 pt-1 pb-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isAdmin && earningsStaffId) {
+                          setEarningsStaffId(null);
+                        } else {
+                          setSettingsSubView('root');
+                        }
+                      }}
+                      className="flex items-center gap-1 text-[#0d6efd] font-semibold text-sm hover:underline mb-0.5"
+                    >
+                      <ChevronLeft className="w-4 h-4 -ml-1 stroke-[2.2]" />
+                      {isAdmin && earningsStaffId ? 'All earnings' : 'Settings'}
+                    </button>
+                    <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-tight">
+                      {isAdmin && earningsStaffId ? earningsData.viewName : 'My Earnings'}
+                    </h1>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      Completed jobs only · stylists keep {STAFF_SHARE_PERCENT}% of each job
+                    </p>
+                  </div>
+                </header>
+
+                <main className="w-full max-w-md mx-auto flex-1 px-4 pt-3 pb-28 space-y-3.5">
+                  {/* Period filter */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                      {[
+                        { id: 'today', label: 'Today' },
+                        { id: 'yesterday', label: 'Yesterday' },
+                        { id: 'week', label: '7 Days' },
+                        { id: 'month', label: 'This Month' },
+                        { id: 'all', label: 'All Time' },
+                        { id: 'custom', label: 'Pick Day' }
+                      ].map(tab => (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setEarningsRange(tab.id as AnalyticsRange)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                            earningsRange === tab.id
+                              ? 'bg-[#0d6efd] text-white shadow-sm'
+                              : 'bg-white text-zinc-600 hover:text-zinc-900 border border-zinc-200/70'
+                          }`}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+                    {earningsRange === 'custom' && (
+                      <div className="bg-white p-3 rounded-2xl border border-blue-200 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <CalendarDays className="w-4 h-4 text-[#0d6efd]" />
+                          <span className="text-xs font-semibold text-zinc-700">Select Date:</span>
+                        </div>
+                        <input
+                          type="date"
+                          value={earningsCustomDate}
+                          onChange={e => e.target.value && setEarningsCustomDate(e.target.value)}
+                          className="px-3 py-1 bg-zinc-100 rounded-lg text-xs font-bold text-zinc-900 border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-[#0d6efd]"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Hero card */}
+                  <div className="bg-gradient-to-br from-white via-white to-green-50/50 p-4 rounded-2xl shadow-sm border border-zinc-200/80">
+                    <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                      {earningsData.viewName} · {earningsData.rangeLabel}
+                    </span>
+                    <span className="text-3xl sm:text-4xl font-black text-[#198754] tracking-tight block my-2">
+                      Rs. {earningsData.summary.total.toLocaleString()}
+                    </span>
+                    <div className="grid grid-cols-2 gap-2 pt-3 border-t border-zinc-100 text-center">
+                      <div className="bg-zinc-50/80 rounded-xl p-2">
+                        <span className="text-xs text-zinc-500 font-medium block">Own jobs</span>
+                        <span className="text-base font-extrabold text-zinc-900 block mt-0.5">
+                          {earningsData.summary.ownCount}
+                        </span>
+                        <span className="text-[11px] text-zinc-500 block">
+                          Rs. {earningsData.summary.own.toLocaleString()} billed
+                        </span>
+                      </div>
+                      <div className="bg-zinc-50/80 rounded-xl p-2">
+                        <span className="text-xs text-zinc-500 font-medium block">
+                          {earningsData.viewIsOwner ? 'From own jobs' : `Your ${STAFF_SHARE_PERCENT}%`}
+                        </span>
+                        <span className="text-base font-extrabold text-zinc-900 block mt-0.5">
+                          Rs. {earningsData.summary.ownEarned.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                    {earningsData.viewIsOwner && (
+                      <div className="mt-2 flex items-center justify-between bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                        <span className="text-xs font-semibold text-amber-800">
+                          Team share ({earningsData.summary.teamCount} jobs)
+                        </span>
+                        <span className="text-sm font-extrabold text-amber-900">
+                          + Rs. {earningsData.summary.teamEarned.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Admin: everyone's earnings */}
+                  {isAdmin && !earningsStaffId && (
+                    <div>
+                      <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase mb-2 block px-1">
+                        Team · {earningsData.rangeLabel}
+                      </span>
+                      <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
+                        {earningsData.rows.map(r => (
+                          <button
+                            key={r.staff.id}
+                            type="button"
+                            onClick={() => setEarningsStaffId(r.staff.id)}
+                            className="w-full p-3.5 flex items-center justify-between gap-3 text-left hover:bg-zinc-50/80 transition-colors"
+                          >
+                            <div className="min-w-0">
+                              <span className="font-bold text-sm text-zinc-900 block truncate">{r.staff.name}</span>
+                              <span className="text-xs text-zinc-500">
+                                {r.ownCount} jobs · Rs. {r.own.toLocaleString()} billed
+                              </span>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <span className="font-extrabold text-sm text-[#198754] block">
+                                Rs. {r.total.toLocaleString()}
+                              </span>
+                              {r.staff.id !== OWNER_STAFF_ID && (
+                                <span className="text-[11px] text-zinc-400">
+                                  owner +Rs. {(r.own - r.ownEarned).toLocaleString()}
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                      {earningsData.unassignedCount > 0 && (
+                        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mt-2">
+                          {earningsData.unassignedCount} completed job(s) worth Rs. {earningsData.unassignedValue.toLocaleString()} are
+                          not assigned to a stylist (booked as “Any”), so they are not counted above.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Daily history */}
+                  <div>
+                    <span className="text-xs font-bold text-zinc-400 tracking-wider uppercase mb-2 block px-1">
+                      Daily history
+                    </span>
+                    <div className="bg-white rounded-2xl shadow-sm border border-zinc-200/60 overflow-hidden divide-y divide-zinc-100">
+                      {earningsData.daily.length === 0 ? (
+                        <div className="p-5 text-center text-sm text-zinc-500">No completed jobs in this period.</div>
+                      ) : (
+                        earningsData.daily.map(d => (
+                          <button
+                            key={d.date}
+                            type="button"
+                            onClick={() => {
+                              setEarningsCustomDate(d.date);
+                              setEarningsRange('custom');
+                            }}
+                            className="w-full p-3.5 flex items-center justify-between gap-3 text-left hover:bg-zinc-50/80 transition-colors"
+                          >
+                            <div>
+                              <span className="font-bold text-sm text-zinc-900 block">
+                                {formatSriLankaDateStr(d.date, { longWeekday: true })}
+                              </span>
+                              <span className="text-xs text-zinc-500">
+                                {d.ownCount} own job{d.ownCount === 1 ? '' : 's'}
+                                {earningsData.viewIsOwner && d.teamCount > 0 ? ` · ${d.teamCount} team` : ''}
+                              </span>
+                            </div>
+                            <span className="font-extrabold text-sm text-[#198754]">
+                              Rs. {d.total.toLocaleString()}
+                            </span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </main>
+              </div>
+            )}
+
+            {settingsSubView === 'analytics' && isAdmin && (
               <div className="flex flex-col w-full animate-fadeIn">
                 {/* LOCKED TOP HEADER */}
                 <header 
